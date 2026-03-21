@@ -55,7 +55,8 @@ const createMockWallet = () => ({
     download_url: '/wallet/backup/tpubDDMTD6EJKKLP6Gx9JUnMpjf9NYyePJszmqBnNqULNmcgEuU1yQ3JsHhWZdRFecszWETnNsmhEe9vnaNibfzZkDDHycbR2rGFbXdHWRgBfu7'
   }),
   downloadBackup: jest.fn().mockResolvedValue(Buffer.from('backup')),
-  restoreFromBackup: jest.fn().mockResolvedValue({ message: 'Wallet restored successfully' })
+  restoreFromBackup: jest.fn().mockResolvedValue({ message: 'Wallet restored successfully' }),
+  initialize: jest.fn().mockResolvedValue(undefined)
 })
 
 let WalletAccountRgb

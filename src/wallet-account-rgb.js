@@ -107,6 +107,9 @@ export default class WalletAccountRgb extends WalletAccountReadOnlyRgb {
       dataDir
     })
 
+    // Initialize the wallet (loads native rgb-lib addon asynchronously)
+    await wallet.initialize()
+
     const account = new WalletAccountRgb(wallet, config)
 
     return account
@@ -152,6 +155,9 @@ export default class WalletAccountRgb extends WalletAccountReadOnlyRgb {
       indexerUrl,
       transportEndpoint
     })
+
+    // Initialize the wallet (loads native rgb-lib addon asynchronously)
+    await wallet.initialize()
 
     const account = new WalletAccountRgb(wallet, config)
 

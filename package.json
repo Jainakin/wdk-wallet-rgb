@@ -27,10 +27,13 @@
   "dependencies": {
     "@scure/bip32": "1.7.0",
     "@tetherto/wdk-wallet": "^1.0.0-beta.1",
-    "@utexo/rgb-sdk": "1.0.3",
+    "@utexo/rgb-sdk": "file:../rgb-sdk",
     "bare-node-runtime": "1.1.4",
     "bip39": "3.1.0",
     "sodium-universal": "5.0.1"
+  },
+  "optionalDependencies": {
+    "@utexo/rgb-lib-bare": "file:../packages/rgb-lib-bare"
   },
 
   "devDependencies": {

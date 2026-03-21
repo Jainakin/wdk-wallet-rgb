@@ -101,8 +101,17 @@ export default class WalletAccountReadOnlyRgb extends WalletAccountReadOnly {
    * @returns {Promise<bigint>} The bitcoin balance (in satoshis).
    */
   async getBalance () {
-    const balance = await this._wallet.getBtcBalance()
-    return BigInt(balance.vanilla.settled || 0)
+    try {
+      const balance = await this._wallet.getBtcBalance()
+      if (balance && balance.vanilla && typeof balance.vanilla.settled !== 'undefined') {
+        return BigInt(balance.vanilla.settled)
+      }
+      // Fallback: getBtcBalance() returned unexpected structure
+      return BigInt(0)
+    } catch (error) {
+      // Wallet may not be online yet — return 0 instead of crashing
+      return BigInt(0)
+    }
   }
 
   /**
