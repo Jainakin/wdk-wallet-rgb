@@ -28,7 +28,7 @@
     "@scure/bip32": "1.7.0",
     "@tetherto/wdk-wallet": "^1.0.0-beta.1",
     "@utexo/rgb-sdk": "https://github.com/Jainakin/rgb-sdk#f106355dd24c2d00367dbb5498194a7fc2acf3c7",
-    "bare-node-runtime": "1.1.4",
+    "bare-node-runtime": "1.2.0",
     "bip39": "3.1.0",
     "sodium-universal": "5.0.1"
   },
