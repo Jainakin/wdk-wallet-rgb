@@ -33,7 +33,7 @@
     "sodium-universal": "5.0.1"
   },
   "optionalDependencies": {
-    "@utexo/rgb-lib-bare": "https://github.com/Jainakin/rgb-lib-bare#3c4354cdf1d2940d0eb5bee7ecec2a71ad19f6fc"
+    "@utexo/rgb-lib-bare": "https://github.com/Jainakin/rgb-lib-bare#4511003ae4af1c9dbf4aa3b3c7e5abb18d193f38"
   },
 
   "devDependencies": {
