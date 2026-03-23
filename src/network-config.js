@@ -1,5 +1,3 @@
-'use strict'
-
 // UTEXO network configuration — asset ID mappings for bridge operations.
 // Ported from @utexo/rgb-sdk utexo-presets.ts
 
@@ -12,7 +10,7 @@ function withGetAssetById (config) {
   }
 }
 
-const testnetConfig = {
+export const testnetConfig = {
   networkMap: { mainnet: 'testnet', utexo: 'signet' },
   networkIdMap: {
     mainnet: withGetAssetById({
@@ -42,7 +40,7 @@ const testnetConfig = {
   }
 }
 
-const mainnetConfig = {
+export const mainnetConfig = {
   networkMap: { mainnet: 'mainnet', utexo: 'signet' },
   networkIdMap: {
     mainnet: withGetAssetById({
@@ -72,11 +70,11 @@ const mainnetConfig = {
   }
 }
 
-function getNetworkConfig (network) {
+export function getNetworkConfig (network) {
   return network === 'mainnet' ? mainnetConfig : testnetConfig
 }
 
-function getDestinationAsset (senderNetwork, destinationNetwork, assetIdSender, networkIdMap) {
+export function getDestinationAsset (senderNetwork, destinationNetwork, assetIdSender, networkIdMap) {
   const destinationConfig = networkIdMap[destinationNetwork]
   if (assetIdSender == null) return destinationConfig.assets[0]
   const senderConfig = networkIdMap[senderNetwork]
@@ -85,7 +83,7 @@ function getDestinationAsset (senderNetwork, destinationNetwork, assetIdSender, 
   return destinationConfig.assets.find(a => a.tokenId === senderAsset.tokenId)
 }
 
-function toUnitsNumber (value, precision) {
+export function toUnitsNumber (value, precision) {
   const s = String(value).trim()
   const neg = s.startsWith('-')
   const [iRaw, fRaw = ''] = (neg ? s.slice(1) : s).split('.')
@@ -94,10 +92,3 @@ function toUnitsNumber (value, precision) {
   return neg ? -units : units
 }
 
-export {
-  getNetworkConfig,
-  getDestinationAsset,
-  toUnitsNumber,
-  testnetConfig,
-  mainnetConfig
-}

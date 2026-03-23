@@ -1,15 +1,13 @@
-'use strict'
-
 // UTEXO Gateway Bridge API Client
 // Ported from @utexo/rgb-sdk UtexoBridgeApiClient.
 // Uses fetch (available in bare, Node 18+, and browsers).
 
-const DEFAULT_GATEWAY_BASE_URLS = {
+export const DEFAULT_GATEWAY_BASE_URLS = {
   mainnet: 'https://gateway.utexo.utexo.com/',
   testnet: 'https://dev.gateway.utexo.tricorn.network/'
 }
 
-const TransferStatuses = {
+export const TransferStatuses = {
   0: 'Unspecified',
   1: 'Confirming',
   2: 'Canceled',
@@ -24,7 +22,7 @@ function encodeTransferStatus (status) {
   return new TextEncoder().encode(String(status))[0]
 }
 
-class FetchClient {
+export class FetchClient {
   constructor (baseURL) {
     this.baseURL = baseURL.replace(/\/+$/, '')
   }
@@ -63,7 +61,7 @@ class FetchClient {
   }
 }
 
-class UtexoBridgeApiClient {
+export class UtexoBridgeApiClient {
   constructor (httpClient, basePath = '/v1/utexo/bridge') {
     this.http = httpClient
     this.basePath = basePath
@@ -151,15 +149,8 @@ class UtexoBridgeApiClient {
   }
 }
 
-function getBridgeAPI (network = 'mainnet') {
+export function getBridgeAPI (network = 'mainnet') {
   const httpClient = new FetchClient(DEFAULT_GATEWAY_BASE_URLS[network])
   return new UtexoBridgeApiClient(httpClient)
 }
 
-export {
-  getBridgeAPI,
-  UtexoBridgeApiClient,
-  FetchClient,
-  DEFAULT_GATEWAY_BASE_URLS,
-  TransferStatuses
-}
