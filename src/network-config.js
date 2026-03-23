@@ -94,7 +94,7 @@ function toUnitsNumber (value, precision) {
   return neg ? -units : units
 }
 
-module.exports = {
+export {
   getNetworkConfig,
   getDestinationAsset,
   toUnitsNumber,

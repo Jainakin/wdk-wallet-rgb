@@ -156,7 +156,7 @@ function getBridgeAPI (network = 'mainnet') {
   return new UtexoBridgeApiClient(httpClient)
 }
 
-module.exports = {
+export {
   getBridgeAPI,
   UtexoBridgeApiClient,
   FetchClient,
