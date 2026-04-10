@@ -280,15 +280,16 @@ export default class WalletAccountRgb extends WalletAccountReadOnlyRgb {
   async sendTransaction (options) {
     try {
       const { fee } = await this.quoteSendTransaction(options)
-      const psbt = this._wallet.sendBtcBegin({
-        address: options.to,
-        amount: options.value,
-        feeRate: options.feeRate || 1
-      })
-      const signedPsbt = await this.signPsbt(psbt)
-      const result = this._wallet.sendBtcEnd({ signedPsbt })
+      // rgb-lib v0.3.0-beta.15+: sendBtc handles full flow (sign + broadcast)
+      const hash = this._wallet.sendBtc(
+        this._online,
+        options.to,
+        options.value,
+        options.feeRate || 1,
+        false /* skipSync */
+      )
       return {
-        hash: result || 'unknown',
+        hash: hash || 'unknown',
         fee
       }
     } catch (error) {
@@ -488,15 +489,13 @@ export default class WalletAccountRgb extends WalletAccountReadOnlyRgb {
    * @returns {Promise<Omit<TransactionResult, 'hash'>>} The transaction's quotes.
    */
   async quoteSendTransaction (tx) {
-    const feeRate = this._wallet.estimateFeeRate(1)
-    const psbt = this._wallet.sendBtcBegin({
-      address: tx.to,
-      amount: tx.value,
-      feeRate: Math.round(feeRate)
-    })
-    const signedPsbt = await this.signPsbt(psbt)
-    const { fee } = await this._wallet.estimateFee(signedPsbt)
-    return { fee: BigInt(fee) }
+    // rgb-lib v0.3.0-beta.15+: sendBtcBegin/End removed. Since we can't
+    // construct an unsigned PSBT without broadcasting, we estimate the fee
+    // from the current fee rate × typical P2WPKH tx size (~140 vbytes).
+    const feeRate = Math.round(this._wallet.estimateFeeRate(1))
+    const estimatedVbytes = 140
+    const fee = BigInt(feeRate * estimatedVbytes)
+    return { fee }
   }
 
   /**

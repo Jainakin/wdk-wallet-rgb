@@ -33,7 +33,7 @@
     "sodium-universal": "5.0.1"
   },
   "optionalDependencies": {
-    "@utexo/rgb-lib-bare": "https://github.com/UTEXO-Protocol/rgb-lib-bare#8a728eacc90bb2069fe5e45299ee779eb5dfe716"
+    "@utexo/rgb-lib-bare": "https://github.com/UTEXO-Protocol/rgb-lib-bare#4de094639ccb9c209b7a76611d54ab088e2fe1a6"
   },
 
   "devDependencies": {
