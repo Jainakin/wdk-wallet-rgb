@@ -139,7 +139,7 @@ export class BareRgbLibBinding {
   }
 
   async listAssets () {
-    return parseResult(this._wallet.listAssets())
+    return parseResult(this._wallet.listAssets([]))
   }
 
   async getAssetBalance (assetId) {
