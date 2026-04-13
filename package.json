@@ -25,16 +25,15 @@
     "test:coverage": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --coverage"
   },
   "dependencies": {
-    "@scure/bip32": "1.7.0",
     "@scure/base": "^1.2.4",
+    "@scure/bip32": "1.7.0",
     "@tetherto/wdk-wallet": "^1.0.0-beta.1",
-    "@utexo/rgb-sdk-core": "https://github.com/Jainakin/rgb-sdk-core#add-default-export",
     "@utexo/rgb-lib-bare": "https://github.com/UTEXO-Protocol/rgb-lib-bare#36c83a1f415ee8ea69a2b613fe2db76ce0d047cf",
+    "@utexo/rgb-sdk-core": "^1.0.0-beta.3",
     "bare-node-runtime": "1.2.0",
     "bip39": "3.1.0",
     "sodium-universal": "5.0.1"
   },
-
   "devDependencies": {
     "cross-env": "7.0.3",
     "jest": "29.7.0",
@@ -54,6 +53,11 @@
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
+  },
+  "jest": {
+    "moduleNameMapper": {
+      "^@utexo/rgb-lib-bare$": "<rootDir>/tests/__mocks__/rgb-lib-bare.mjs"
+    }
   },
   "standard": {
     "ignore": [
