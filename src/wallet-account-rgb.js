@@ -68,13 +68,15 @@ export default class WalletAccountRgb extends WalletAccountReadOnlyRgb {
   constructor (walletOrBindings, config = {}) {
     super(undefined, config)
 
-    // Accept either { binding, signer } (new architecture) or a legacy wallet object
+    // Accept either { binding, signer, seed } (new architecture) or a legacy wallet object
     if (walletOrBindings && walletOrBindings.binding) {
       this._wallet = walletOrBindings.binding
       this._signer = walletOrBindings.signer
+      this._seed = walletOrBindings.seed || null
     } else {
       this._wallet = walletOrBindings
       this._signer = null
+      this._seed = null
     }
     /** @private */
     this._index = 0 // always 0 for RGB
@@ -115,7 +117,7 @@ export default class WalletAccountRgb extends WalletAccountReadOnlyRgb {
     // Go online to connect to the indexer
     binding.getOnline()
 
-    const account = new WalletAccountRgb({ binding, signer }, config)
+    const account = new WalletAccountRgb({ binding, signer, seed }, config)
 
     return account
   }
@@ -161,7 +163,7 @@ export default class WalletAccountRgb extends WalletAccountReadOnlyRgb {
     const signer = new BareSigner(binding)
     binding.getOnline()
 
-    const account = new WalletAccountRgb({ binding, signer }, config)
+    const account = new WalletAccountRgb({ binding, signer, seed }, config)
 
     return account
   }

@@ -181,9 +181,26 @@ export class BareRgbLibBinding {
 
   async sendBegin (params) {
     this.getOnline()
+
+    // Accept either { recipientMap } (raw format) or { invoice, assetId, amount } (WDK format)
+    let recipientMap = params.recipientMap
+    if (!recipientMap && params.invoice) {
+      // Convert WDK-style params to rgb-lib recipientMap format
+      const recipient = {
+        recipientId: params.invoice,
+        witnessLevel: 1,
+        amount: params.amount || 1
+      }
+      if (params.witnessData) {
+        recipient.witnessData = params.witnessData
+      }
+      const assetId = params.assetId || ''
+      recipientMap = { [assetId]: [recipient] }
+    }
+
     return this._wallet.sendBegin(
       this._online,
-      toFFIString(params.recipientMap),
+      toFFIString(recipientMap),
       !!params.donation,
       toFFIString(params.feeRate),
       toFFIString(params.minConfirmations),
@@ -250,11 +267,15 @@ export class BareRgbLibBinding {
 
   async failTransfers (params) {
     this.getOnline()
+    // Accept both string (transferId) and object { batchTransferIdx, noAssetOnly, skipSync }
+    const batchIdx = typeof params === 'string' ? params : (params.batchTransferIdx || params)
+    const noAssetOnly = typeof params === 'object' ? !!params.noAssetOnly : false
+    const skipSync = typeof params === 'object' ? !!params.skipSync : false
     return parseResult(this._wallet.failTransfers(
       this._online,
-      toFFIString(params.batchTransferIdx),
-      !!params.noAssetOnly,
-      !!params.skipSync
+      toFFIString(batchIdx),
+      noAssetOnly,
+      skipSync
     ))
   }
 
@@ -311,12 +332,15 @@ export class BareRgbLibBinding {
   }
 
   async signMessage (message) {
-    // Delegate to signer if available, otherwise use raw wallet
-    throw new Error('signMessage not available on binding — use signer instead')
+    // rgb-lib-bare doesn't have native message signing.
+    // This is handled by BareSigner at the account level.
+    // If called directly, provide a helpful error.
+    throw new Error('Use BareSigner.signMessage() instead — call through WalletAccountRgb.sign()')
   }
 
   async verifyMessage (message, signature) {
-    throw new Error('verifyMessage not available on binding — use signer instead')
+    // Same as signMessage — handled by BareSigner at account level.
+    throw new Error('Use BareSigner.verifyMessage() instead — call through WalletAccountRgb.verify()')
   }
 
   async estimateFeeRate (blocks) {
