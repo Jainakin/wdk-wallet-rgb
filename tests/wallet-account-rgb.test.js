@@ -12,6 +12,12 @@ const mockKeysBase = {
 }
 
 const createMockWallet = () => ({
+  getOnline: jest.fn(),
+  dropWallet: jest.fn(),
+  sendBtc: jest.fn().mockResolvedValue('txid-123'),
+  createUtxos: jest.fn().mockResolvedValue(5),
+  syncWallet: jest.fn(),
+  getRawWallet: jest.fn().mockReturnValue({ signPsbt: jest.fn().mockReturnValue('signed') }),
   registerWallet: jest.fn().mockResolvedValue(undefined),
   getAddress: jest.fn().mockResolvedValue('bc1p-test-address'),
   getBtcBalance: jest.fn().mockResolvedValue({ vanilla: { settled: 1500000 } }),
@@ -378,11 +384,9 @@ describe('WalletAccountRgb', () => {
       expect(wallet.createBackup).toHaveBeenCalledWith('secure-password')
     })
 
-    test.todo('restoreFromBackup delegates to top-level function and returns success response' /* needs update for BareRgbLibBinding architecture */); test.skip('SKIP-restoreFromBackup', async () => {
+    test('restoreFromBackup delegates to rgb-lib-bare restoreBackup', async () => {
       const { account } = await createAccount()
-      const { restoreBackup: restoreFromBackupMock } = await import('@utexo/rgb-lib-bare')
-      const mockResponse = { message: 'Wallet restored successfully' }
-      restoreFromBackupMock.mockReturnValue(mockResponse)
+      const rgblib = await import('@utexo/rgb-lib-bare')
 
       const params = {
         backupFilePath: './backups/wallet.backup',
@@ -390,13 +394,12 @@ describe('WalletAccountRgb', () => {
         dataDir: './restored-wallet'
       }
 
-      const result = account.restoreFromBackup(params)
-      expect(result).toEqual(mockResponse)
-      expect(restoreFromBackupMock).toHaveBeenCalledWith({
-        backupFilePath: params.backupFilePath,
-        password: params.password,
-        dataDir: params.dataDir
-      })
+      account.restoreFromBackup(params)
+      expect(rgblib.default.restoreBackup).toHaveBeenCalledWith(
+        params.backupFilePath,
+        params.password,
+        params.dataDir
+      )
     })
 
     test('restoreFromBackup throws error when network error occurs (node down)', async () => {
@@ -478,14 +481,9 @@ describe('WalletAccountRgb', () => {
   })
 
   describe('fromBackup', () => {
-    test.skip('restores wallet from backup without registering', async () => {
-      const walletInstance = createMockWallet()
-      walletInstance.registerWallet = jest.fn()
-
-      WalletManagerMock.mockImplementationOnce(() => walletInstance)
-
-      // Get the restoreFromBackup mock - it's already reset in beforeEach
-      const { restoreBackup: restoreFromBackupMock } = await import('@utexo/rgb-lib-bare')
+    test('restores wallet from backup using BareRgbLibBinding', async () => {
+      const rgblib = await import('@utexo/rgb-lib-bare')
+      const { BareRgbLibBinding } = await import('../src/bare-binding.js')
 
       const config = createAccountConfig({
         backupFilePath: './backups/wallet.backup',
@@ -495,22 +493,24 @@ describe('WalletAccountRgb', () => {
 
       const account = await WalletAccountRgb.fromBackup(SEED_PHRASE, config)
 
-      expect(restoreFromBackupMock).toHaveBeenCalledWith({
-        backupFilePath: config.backupFilePath,
-        password: config.password,
-        dataDir: config.dataDir
-      })
+      // Verify restoreBackup was called with correct params
+      expect(rgblib.default.restoreBackup).toHaveBeenCalledWith(
+        config.backupFilePath,
+        config.password,
+        config.dataDir
+      )
 
-      expect(WalletManagerMock).toHaveBeenCalledWith({
+      // Verify BareRgbLibBinding was created with correct params
+      expect(BareRgbLibBinding).toHaveBeenCalledWith({
         xpubVan: config.keys.accountXpubVanilla,
         xpubCol: config.keys.accountXpubColored,
         masterFingerprint: config.keys.masterFingerprint,
+        mnemonic: config.keys.mnemonic,
         dataDir: config.dataDir,
         indexerUrl: config.indexerUrl,
         transportEndpoint: config.transportEndpoint
       })
 
-      expect(walletInstance.registerWallet).not.toHaveBeenCalled()
       expect(account).toBeInstanceOf(WalletAccountRgb)
     })
   })
