@@ -14,7 +14,7 @@
 'use strict'
 
 import WalletManager from '@tetherto/wdk-wallet'
-import { deriveKeysFromSeed } from '@utexo/rgb-sdk'
+import { deriveKeysFromSeed } from '@utexo/rgb-sdk-core'
 import WalletAccountRgb from './wallet-account-rgb.js'
 
 const MEMPOOL_SPACE_URL = 'https://mempool.space'
@@ -23,14 +23,13 @@ const MEMPOOL_SPACE_URL = 'https://mempool.space'
 
 /** @typedef {import('./wallet-account-read-only-rgb.js').RgbWalletConfig} RgbWalletConfig */
 /** @typedef {import('./wallet-account-rgb.js').RgbRestoreConfig} RgbRestoreConfig */
-/** @typedef {import('@utexo/rgb-sdk').GeneratedKeys} GeneratedKeys */
 
 export default class WalletManagerRgb extends WalletManager {
   /**
    * Creates a new wallet manager for the RGB.
    *
-   * @param {string | Uint8Array} seed - The wallet's [BIP-39](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki) seed phrase.
-   * @param {RgbWalletConfig} config - The configuration object (network and rgbNodeEndpoint are required).
+   * @param {string | Uint8Array} seed - The wallet's BIP-39 seed phrase.
+   * @param {RgbWalletConfig} config - The configuration object (network is required).
    */
   constructor (seed, config = {}) {
     super(seed, config)
@@ -42,7 +41,7 @@ export default class WalletManagerRgb extends WalletManager {
     /** @private */
     this._network = config.network
 
-    /** @private @type {GeneratedKeys | null} */
+    /** @private @type {Object | null} */
     this._keys = null
   }
 
@@ -58,7 +57,7 @@ export default class WalletManagerRgb extends WalletManager {
     if (!this.seed) {
       throw new Error('RGB wallet requires a BIP-39 mnemonic seed phrase')
     }
-    // Derive keys from mnemonic
+    // Derive keys from seed using rgb-sdk-core's key derivation
     this._keys = await deriveKeysFromSeed(this._network, this.seed)
     return this._keys
   }
@@ -67,8 +66,6 @@ export default class WalletManagerRgb extends WalletManager {
    * Returns the account always at index 0 RGB does not support multiple BIP-44
    *
    * @param {number} [index] - The account index (must be 0 for RGB).
-   * @example
-   * const account = await wallet.getAccount();
    * @returns {Promise<WalletAccountRgb>} The account.
    */
   async getAccount (index = 0) {
@@ -98,7 +95,7 @@ export default class WalletManagerRgb extends WalletManager {
   /**
    * Restores the account from a wallet backup.
    *
-   * @param {RgbRestoreConfig} restoreConfig - Restore configuration containing backup details.
+   * @param {Object} restoreConfig - Restore configuration containing backup details.
    * @returns {Promise<WalletAccountRgb>} The restored account.
    */
   async restoreAccountFromBackup (restoreConfig = {}) {
@@ -122,8 +119,8 @@ export default class WalletManagerRgb extends WalletManager {
   /**
    * Returns the wallet account at a specific BIP-44 derivation path.
    *
-   * @param {string} path - The derivation path (e.g. "0'/0/0").
-   * @returns {Promise<never>} The account.
+   * @param {string} path - The derivation path.
+   * @returns {Promise<never>}
    */
   async getAccountByPath (path) {
     throw new Error('Method not supported on the RGB')
@@ -146,7 +143,7 @@ export default class WalletManagerRgb extends WalletManager {
   }
 
   /**
-   * Overrides the parent dispose() to explicitly clean up sensitive data in this._keys.
+   * Overrides the parent dispose() to explicitly clean up sensitive data.
    */
   dispose () {
     if (this._keys) {

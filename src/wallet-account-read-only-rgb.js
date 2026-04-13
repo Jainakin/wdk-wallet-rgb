@@ -14,13 +14,10 @@
 'use strict'
 
 import { WalletAccountReadOnly } from '@tetherto/wdk-wallet'
-import { WalletManager } from '@utexo/rgb-sdk'
+import { BareRgbLibBinding } from './bare-binding.js'
 
 /** @typedef {import('@tetherto/wdk-wallet').TransactionResult} TransactionResult */
 /** @typedef {import('@tetherto/wdk-wallet').TransferResult} TransferResult */
-/** @typedef {import('@utexo/rgb-sdk').Transaction} RgbTransactionReceipt */
-/** @typedef {import('@utexo/rgb-sdk').RgbTransfer} RgbTransferReceipt */
-/** @typedef {import('@utexo/rgb-sdk').GeneratedKeys} Keys */
 
 /**
  * @typedef {Object} WitnessData
@@ -48,7 +45,7 @@ import { WalletManager } from '@utexo/rgb-sdk'
 /**
  * @typedef {Object} RgbWalletConfig
  * @property {'mainnet' | 'testnet' | 'regtest'} network - The network (required).
- * @property {Keys} [keys] - The wallet keys from @utexo/rgb-sdk.
+ * @property {Object} [keys] - The wallet keys (accountXpubVanilla, accountXpubColored, masterFingerprint, mnemonic).
  * @property {string} [indexerUrl] - Electrs indexer URL.
  * @property {string} [transportEndpoint] - Transport endpoint.
  * @property {number | bigint} [transferMaxFee] - The maximum fee amount for transfer operations.
@@ -84,10 +81,11 @@ export default class WalletAccountReadOnlyRgb extends WalletAccountReadOnly {
     const { keys, indexerUrl, transportEndpoint, dataDir, network } = this._config
 
     /** @private */
-    this._wallet = new WalletManager({
+    this._wallet = new BareRgbLibBinding({
       xpubVan: keys.accountXpubVanilla,
       xpubCol: keys.accountXpubColored,
       masterFingerprint: keys.masterFingerprint,
+      mnemonic: keys.mnemonic || null,
       network,
       dataDir,
       indexerUrl,

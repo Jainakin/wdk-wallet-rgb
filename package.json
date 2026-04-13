@@ -26,14 +26,13 @@
   },
   "dependencies": {
     "@scure/bip32": "1.7.0",
+    "@scure/base": "^1.2.4",
     "@tetherto/wdk-wallet": "^1.0.0-beta.1",
-    "@utexo/rgb-sdk": "https://github.com/Jainakin/rgb-sdk#3b96a77998002750973b6799b4f56e68dab18367",
+    "@utexo/rgb-sdk-core": "https://github.com/Jainakin/rgb-sdk-core#add-default-export",
+    "@utexo/rgb-lib-bare": "https://github.com/UTEXO-Protocol/rgb-lib-bare#36c83a1f415ee8ea69a2b613fe2db76ce0d047cf",
     "bare-node-runtime": "1.2.0",
     "bip39": "3.1.0",
     "sodium-universal": "5.0.1"
-  },
-  "optionalDependencies": {
-    "@utexo/rgb-lib-bare": "https://github.com/UTEXO-Protocol/rgb-lib-bare#36c83a1f415ee8ea69a2b613fe2db76ce0d047cf"
   },
 
   "devDependencies": {

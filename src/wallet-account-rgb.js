@@ -14,7 +14,10 @@
 'use strict'
 
 import WalletAccountReadOnlyRgb from './wallet-account-read-only-rgb.js'
-import { WalletManager, BIP32_VERSIONS, restoreFromBackup } from '@utexo/rgb-sdk'
+import { BIP32_VERSIONS } from '@utexo/rgb-sdk-core'
+import { BareRgbLibBinding } from './bare-binding.js'
+import { BareSigner } from './bare-signer.js'
+import rgblib from '@utexo/rgb-lib-bare'
 // eslint-disable-next-line camelcase
 import { sodium_memzero } from 'sodium-universal'
 import { HDKey } from '@scure/bip32'
@@ -25,12 +28,6 @@ import { base58 } from '@scure/base'
 /** @typedef {import('@tetherto/wdk-wallet').TransactionResult} TransactionResult */
 /** @typedef {import('@tetherto/wdk-wallet').TransferResult} TransferResult */
 /** @typedef {import('./wallet-account-read-only-rgb.js').TransferOptions} TransferOptions */
-/** @typedef {import('@utexo/rgb-sdk').Transaction} RgbTransactionReceipt */
-/** @typedef {import('@utexo/rgb-sdk').RgbTransfer} RgbTransferReceipt */
-/** @typedef {import('@utexo/rgb-sdk').IssueAssetNIAResponse} IssueAssetNIA */
-/** @typedef {import('@utexo/rgb-sdk').ListAssetsResponse} ListAssets */
-/** @typedef {import('@utexo/rgb-sdk').InvoiceReceiveData} InvoiceReceiveData */
-/** @typedef {import('@utexo/rgb-sdk').BtcBalance} BtcBalance */
 
 /**
  * Result returned by registerWallet method.
@@ -39,9 +36,9 @@ import { base58 } from '@scure/base'
  * @property {string} address - The wallet's Bitcoin address.
  * @property {BtcBalance} btcBalance - The wallet's Bitcoin balance.
  */
-/** @typedef {import('@utexo/rgb-sdk').SendAssetEndRequestModel} SendAssetEndRequest */
-/** @typedef {import('@utexo/rgb-sdk').SendResult} SendResult */
-/** @typedef {import('@utexo/rgb-sdk').Unspent} Unspent */
+/** @typedef {import('@utexo/rgb-sdk-core').SendAssetEndRequestModel} SendAssetEndRequest */
+/** @typedef {import('@utexo/rgb-sdk-core').SendResult} SendResult */
+/** @typedef {import('@utexo/rgb-sdk-core').Unspent} Unspent */
 /** @typedef {import('./wallet-account-read-only-rgb.js').RgbTransaction} RgbTransaction */
 /** @typedef {import('./wallet-account-read-only-rgb.js').RgbWalletConfig} RgbWalletConfig */
 
@@ -68,11 +65,17 @@ import { base58 } from '@scure/base'
 /** @implements {IWalletAccount} */
 export default class WalletAccountRgb extends WalletAccountReadOnlyRgb {
   /** @package */
-  constructor (wallet, config = {}) {
+  constructor (walletOrBindings, config = {}) {
     super(undefined, config)
 
-    /** @private */
-    this._wallet = wallet
+    // Accept either { binding, signer } (new architecture) or a legacy wallet object
+    if (walletOrBindings && walletOrBindings.binding) {
+      this._wallet = walletOrBindings.binding
+      this._signer = walletOrBindings.signer
+    } else {
+      this._wallet = walletOrBindings
+      this._signer = null
+    }
     /** @private */
     this._index = 0 // always 0 for RGB
     /** @private */
@@ -96,21 +99,23 @@ export default class WalletAccountRgb extends WalletAccountReadOnlyRgb {
     }
 
     const { network, indexerUrl, transportEndpoint, dataDir } = config
-    const wallet = new WalletManager({
+    const binding = new BareRgbLibBinding({
       xpubVan: keys.accountXpubVanilla,
       xpubCol: keys.accountXpubColored,
       masterFingerprint: keys.masterFingerprint,
-      seed,
+      mnemonic: keys.mnemonic || null,
       network,
       indexerUrl,
       transportEndpoint,
       dataDir
     })
+    const signer = new BareSigner(binding)
 
-    // Initialize the wallet (loads native rgb-lib addon asynchronously)
-    await wallet.initialize()
+    // The binding creates the wallet in its constructor (synchronous in bare)
+    // Go online to connect to the indexer
+    binding.getOnline()
 
-    const account = new WalletAccountRgb(wallet, config)
+    const account = new WalletAccountRgb({ binding, signer }, config)
 
     return account
   }
@@ -142,24 +147,21 @@ export default class WalletAccountRgb extends WalletAccountReadOnlyRgb {
     }
 
     const { dataDir, indexerUrl, transportEndpoint } = config
-    restoreFromBackup({
-      backupFilePath: config.backupFilePath,
-      password: config.password,
-      dataDir: config.dataDir
-    })
-    const wallet = new WalletManager({
+    rgblib.restoreBackup(config.backupFilePath, config.password, config.dataDir)
+
+    const binding = new BareRgbLibBinding({
       xpubVan: keys.accountXpubVanilla,
       xpubCol: keys.accountXpubColored,
       masterFingerprint: keys.masterFingerprint,
+      mnemonic: keys.mnemonic || null,
       dataDir,
       indexerUrl,
       transportEndpoint
     })
+    const signer = new BareSigner(binding)
+    binding.getOnline()
 
-    // Initialize the wallet (loads native rgb-lib addon asynchronously)
-    await wallet.initialize()
-
-    const account = new WalletAccountRgb(wallet, config)
+    const account = new WalletAccountRgb({ binding, signer }, config)
 
     return account
   }
@@ -186,7 +188,7 @@ export default class WalletAccountRgb extends WalletAccountReadOnlyRgb {
   get path () {
     // RGB SDK uses BIP-86 (Taproot) derivation: m/86'/coinType'/0'
     // For WDK interface compatibility, return a path representation
-    // The actual derivation is handled by @utexo/rgb-sdk internally
+    // The actual derivation is handled by @utexo/rgb-sdk-core internally
     const network = this._config.network
     const isMainnet = network === 'mainnet'
     const coinType = isMainnet ? 0 : 1
@@ -207,7 +209,7 @@ export default class WalletAccountRgb extends WalletAccountReadOnlyRgb {
 
   /**
    * The account's key pair.
-   * Note: This derives keys using the same BIP-86 path that @utexo/rgb-sdk uses for WDK interface compatibility.
+   * Note: This derives keys using the same BIP-86 path that @utexo/rgb-sdk-core uses for WDK interface compatibility.
    * RGB SDK handles all actual operations internally.
    * Includes RGB-specific fields: accountXpubVanilla, accountXpubColored, masterFingerprint.
    *
@@ -253,6 +255,9 @@ export default class WalletAccountRgb extends WalletAccountReadOnlyRgb {
    * @returns {Promise<string>} The message's signature.
    */
   async sign (message) {
+    if (this._signer) {
+      return await this._signer.signMessage({ message, seed: this._seed, network: this._config.network })
+    }
     return await this._wallet.signMessage(message)
   }
 
@@ -264,6 +269,10 @@ export default class WalletAccountRgb extends WalletAccountReadOnlyRgb {
    * @returns {Promise<boolean>} True if the signature is valid.
    */
   async verify (message, signature) {
+    if (this._signer) {
+      const keys = this._config.keys
+      return await this._signer.verifyMessage({ message, signature, accountXpub: keys?.accountXpubVanilla, network: this._config.network })
+    }
     return await this._wallet.verifyMessage(message, signature)
   }
 
@@ -278,13 +287,11 @@ export default class WalletAccountRgb extends WalletAccountReadOnlyRgb {
   async sendTransaction (options) {
     try {
       const { fee } = await this.quoteSendTransaction(options)
-      // rgb-lib v0.3.0-beta.15+: sendBtc handles full flow (sign + broadcast)
+      // rgb-lib dev: sendBtc handles full flow (sign + broadcast)
       const hash = this._wallet.sendBtc(
-        this._online,
         options.to,
         options.value,
-        options.feeRate || 1,
-        false /* skipSync */
+        options.feeRate || 1
       )
       return {
         hash: hash || 'unknown',
@@ -631,7 +638,7 @@ export default class WalletAccountRgb extends WalletAccountReadOnlyRgb {
    * @param {options} options - The options.
    * @param {string} options.password - The password used to encrypt the backup file.
    * @param {string} options.backupPath - The backup path.
-   * @returns {{message: string, downloadUrl: string}} The backup response from @utexo/rgb-sdk.
+   * @returns {{message: string, downloadUrl: string}} The backup response from @utexo/rgb-sdk-core.
    */
   createBackup (options) {
     return this._wallet.createBackup(options)
@@ -641,10 +648,10 @@ export default class WalletAccountRgb extends WalletAccountReadOnlyRgb {
    * Restores a wallet from a backup file.
    *
    * @param {RgbRestoreParams} params - Restore options.
-   * @returns {{message: string}} The restore response from @utexo/rgb-sdk.
+   * @returns {{message: string}} The restore response from @utexo/rgb-sdk-core.
    */
   restoreFromBackup (params) {
-    return restoreFromBackup(params)
+    return rgblib.restoreBackup(params.backupFilePath, params.password, params.dataDir)
   }
 
   /**
