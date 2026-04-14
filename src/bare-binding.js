@@ -5,23 +5,10 @@
 // injected into BaseWalletManager.
 
 import rgblib from '@utexo/rgb-lib-bare'
+import { DEFAULT_TRANSPORT_ENDPOINTS, DEFAULT_INDEXER_URLS } from '@utexo/rgb-sdk-core'
 import os from 'os'
 import fs from 'bare-fs'
 import path from 'bare-path'
-
-const DEFAULT_TRANSPORT_ENDPOINTS = {
-  mainnet: 'rpcs://proxy.iriswallet.com/0.2/json-rpc',
-  testnet: 'rpcs://proxy.iriswallet.com/0.2/json-rpc',
-  signet: 'rpcs://proxy.iriswallet.com/0.2/json-rpc',
-  regtest: 'rpc://127.0.0.1:3000/json-rpc'
-}
-
-const DEFAULT_INDEXER_URLS = {
-  mainnet: 'ssl://electrum.iriswallet.com:50003',
-  testnet: 'ssl://electrum.iriswallet.com:50003',
-  signet: 'ssl://electrum.iriswallet.com:50003',
-  regtest: 'tcp://127.0.0.1:50001'
-}
 
 function mapNetwork (network) {
   const map = {
