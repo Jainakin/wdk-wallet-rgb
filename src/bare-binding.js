@@ -5,6 +5,9 @@
 // injected into BaseWalletManager.
 
 import rgblib from '@utexo/rgb-lib-bare'
+import os from 'os'
+import fs from 'bare-fs'
+import path from 'bare-path'
 
 const DEFAULT_TRANSPORT_ENDPOINTS = {
   mainnet: 'rpcs://proxy.iriswallet.com/0.2/json-rpc',
@@ -55,8 +58,19 @@ export class BareRgbLibBinding {
     this._transportEndpoint = params.transportEndpoint || DEFAULT_TRANSPORT_ENDPOINTS[network] || DEFAULT_TRANSPORT_ENDPOINTS.signet
     this._indexerUrl = params.indexerUrl || DEFAULT_INDEXER_URLS[network] || DEFAULT_INDEXER_URLS.signet
 
+    const defaultDataDir = path.join(os.tmpdir(), 'rgb-wallet')
+    const dataDir = params.dataDir || defaultDataDir
+
+    // Ensure the data directory exists (rgb-lib requires it)
+    try {
+      fs.mkdirSync(dataDir, { recursive: true })
+    } catch (err) {
+      // Ignore EEXIST — directory already exists
+      if (err.code !== 'EEXIST') throw err
+    }
+
     const walletData = {
-      dataDir: params.dataDir || '/tmp/rgb-wallet',
+      dataDir,
       bitcoinNetwork: mapNetwork(network),
       databaseType: 'Sqlite',
       maxAllocationsPerUtxo: String(params.maxAllocationsPerUtxo || 1),
