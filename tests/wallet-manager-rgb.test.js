@@ -40,6 +40,8 @@ const mockWalletManagerInstance = {
   refreshWallet: jest.fn().mockResolvedValue(undefined),
   getOnline: jest.fn(),
   sendBtc: jest.fn().mockResolvedValue('txid-123'),
+  sendBtcBegin: jest.fn().mockResolvedValue('cHNidF9kYXRh'),
+  sendBtcEnd: jest.fn().mockResolvedValue({ txid: 'txid-456' }),
   estimateFeeRate: jest.fn().mockResolvedValue(1),
   estimateFee: jest.fn().mockResolvedValue({ fee: 210 })
 }

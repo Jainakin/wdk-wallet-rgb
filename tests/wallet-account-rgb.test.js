@@ -15,6 +15,8 @@ const createMockWallet = () => ({
   getOnline: jest.fn(),
   dropWallet: jest.fn(),
   sendBtc: jest.fn().mockResolvedValue('txid-123'),
+  sendBtcBegin: jest.fn().mockResolvedValue('cHNidF9kYXRh'),
+  sendBtcEnd: jest.fn().mockResolvedValue({ txid: 'txid-456' }),
   createUtxos: jest.fn().mockResolvedValue(5),
   syncWallet: jest.fn(),
   getRawWallet: jest.fn().mockReturnValue({ signPsbt: jest.fn().mockReturnValue('signed') }),

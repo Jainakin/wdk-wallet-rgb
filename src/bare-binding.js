@@ -224,12 +224,19 @@ export class BareRgbLibBinding {
     return parseResult(this._wallet.sendEnd(this._online, params.signedPsbt, !!params.skipSync))
   }
 
-  async sendBtcBegin (_params) {
-    throw new Error('sendBtcBegin removed in rgb-lib dev branch — use sendBtc()')
+  async sendBtcBegin (params) {
+    this.getOnline()
+    return this._wallet.sendBtcBegin(
+      this._online, params.address, toFFIString(params.amount),
+      toFFIString(params.feeRate), !!params.skipSync
+    )
   }
 
-  async sendBtcEnd (_params) {
-    throw new Error('sendBtcEnd removed in rgb-lib dev branch — use sendBtc()')
+  async sendBtcEnd (params) {
+    this.getOnline()
+    return parseResult(this._wallet.sendBtcEnd(
+      this._online, params.signedPsbt, !!params.skipSync
+    ))
   }
 
   async blindReceive (params) {

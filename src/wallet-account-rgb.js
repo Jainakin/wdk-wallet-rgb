@@ -490,19 +490,43 @@ export default class WalletAccountRgb extends WalletAccountReadOnlyRgb {
   }
 
   /**
+   * Begin a BTC send operation — returns unsigned PSBT for external signing.
+   * @param {Object} options - { address, amount, feeRate }
+   * @returns {Promise<string>} Unsigned PSBT string.
+   */
+  sendBtcBegin (options) {
+    return this._wallet.sendBtcBegin({
+      address: options.to || options.address,
+      amount: options.value || options.amount,
+      feeRate: options.feeRate || 1
+    })
+  }
+
+  /**
+   * Finalize a BTC send operation with a signed PSBT.
+   * @param {Object} options - { signedPsbt }
+   * @returns {Promise<Object>} Send result { txid }.
+   */
+  sendBtcEnd (options) {
+    return this._wallet.sendBtcEnd(options)
+  }
+
+  /**
    * Quotes the costs of a send transaction operation.
    *
    * @param {Omit<RgbTransaction, 'feeRate'>} tx - The transaction.
    * @returns {Promise<Omit<TransactionResult, 'hash'>>} The transaction's quotes.
    */
   async quoteSendTransaction (tx) {
-    // rgb-lib v0.3.0-beta.15+: sendBtcBegin/End removed. Since we can't
-    // construct an unsigned PSBT without broadcasting, we estimate the fee
-    // from the current fee rate × typical P2WPKH tx size (~140 vbytes).
+    const psbt = await this._wallet.sendBtcBegin({
+      address: tx.to,
+      amount: tx.value,
+      feeRate: tx.feeRate || 1
+    })
     const feeRate = Math.round(this._wallet.estimateFeeRate(1))
     const estimatedVbytes = 140
     const fee = BigInt(feeRate * estimatedVbytes)
-    return { fee }
+    return { fee, psbt }
   }
 
   /**
