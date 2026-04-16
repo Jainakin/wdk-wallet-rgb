@@ -35,6 +35,12 @@ function toFFIString (val) {
   return JSON.stringify(val)
 }
 
+function resolveExpirationTimestamp (params) {
+  if (params.expirationTimestamp) return params.expirationTimestamp
+  if (params.durationSeconds) return Math.floor(Date.now() / 1000) + params.durationSeconds
+  return null
+}
+
 export class BareRgbLibBinding {
   constructor (params) {
     this._params = params
@@ -255,10 +261,11 @@ export class BareRgbLibBinding {
 
   async blindReceive (params) {
     const assignment = params.assignment || { Fungible: params.amount ?? 0 }
+    const expirationTimestamp = resolveExpirationTimestamp(params)
     return parseResult(this._wallet.blindReceive(
       params.assetId || null,
       toFFIString(assignment),
-      toFFIString(params.durationSeconds ?? 2000),
+      toFFIString(expirationTimestamp),
       toFFIString(params.transportEndpoints || [this._transportEndpoint]),
       toFFIString(params.minConfirmations ?? 3)
     ))
@@ -266,10 +273,11 @@ export class BareRgbLibBinding {
 
   async witnessReceive (params) {
     const assignment = params.assignment || { Fungible: params.amount ?? 0 }
+    const expirationTimestamp = resolveExpirationTimestamp(params)
     return parseResult(this._wallet.witnessReceive(
       params.assetId || null,
       toFFIString(assignment),
-      toFFIString(params.durationSeconds ?? 2000),
+      toFFIString(expirationTimestamp),
       toFFIString(params.transportEndpoints || [this._transportEndpoint]),
       toFFIString(params.minConfirmations ?? 3)
     ))
