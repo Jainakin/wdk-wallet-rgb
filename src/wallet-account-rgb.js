@@ -288,16 +288,18 @@ export default class WalletAccountRgb extends WalletAccountReadOnlyRgb {
    */
   async sendTransaction (options) {
     try {
-      const { fee } = await this.quoteSendTransaction(options)
-      // rgb-lib dev: sendBtc handles full flow (sign + broadcast)
-      const hash = this._wallet.sendBtc(
-        options.to,
-        options.value,
-        options.feeRate || 1
-      )
+      // Use sendBtcBegin/End flow so we can sign externally (rgb-lib wallet is watch-only)
+      const psbt = await this._wallet.sendBtcBegin({
+        address: options.to,
+        amount: options.value,
+        feeRate: options.feeRate || 1
+      })
+      const signedPsbt = await this.signPsbt(psbt)
+      const { fee } = await this.signer.estimateFee(signedPsbt)
+      const result = await this._wallet.sendBtcEnd({ signedPsbt })
       return {
-        hash: hash || 'unknown',
-        fee
+        hash: result?.txid || result || 'unknown',
+        fee: BigInt(fee)
       }
     } catch (error) {
       throw new Error(`RGB transfer failed: ${error.message}`)
@@ -563,6 +565,12 @@ export default class WalletAccountRgb extends WalletAccountReadOnlyRgb {
    * @returns {Promise<string>} The signed PSBT (base64 encoded).
    */
   async signPsbt (psbt) {
+    // rgb-lib wallet is watch-only (mnemonic: null), so we sign externally
+    // using BareSigner which implements pure-JS Taproot signing via rgb-sdk.
+    if (this._signer && this._seed) {
+      return await this._signer.signPsbtWithSeed(this._seed, psbt, this._config.network)
+    }
+    // Fallback to rgb-lib's internal signer (only works if wallet has the keys)
     return await this._wallet.signPsbt(psbt)
   }
 

@@ -1,25 +1,26 @@
 // BareSigner — Bare worklet implementation of ISigner.
 //
-// Delegates PSBT signing to rgb-lib-bare's native wallet (which has
-// the keys internally). Message signing and verification use
-// @utexo/rgb-sdk-core's shared crypto utilities.
+// Uses @utexo/rgb-sdk's pure-JS PSBT signer (signPsbtFromSeed) which supports
+// BIP86 Taproot signing with RGB-specific preprocessing. This lets us sign
+// PSBTs returned by rgb-lib's sendBtcBegin/sendBegin flows even when the
+// underlying rgb-lib wallet is watch-only (mnemonic: null).
+//
+// Message signing/verification use @utexo/rgb-sdk-core's shared crypto.
 
 import { signMessage, verifyMessage } from '@utexo/rgb-sdk-core'
+import { signPsbtFromSeed, signPsbt as signPsbtFromMnemonic, estimatePsbt } from '@utexo/rgb-sdk'
 
 export class BareSigner {
   constructor (binding) {
     this._binding = binding
   }
 
-  async signPsbtWithMnemonic (_mnemonic, psbt, _network) {
-    // rgb-lib-bare's wallet already has the keys — just call signPsbt
-    const wallet = this._binding.getRawWallet()
-    return wallet.signPsbt(psbt)
+  async signPsbtWithMnemonic (mnemonic, psbt, network) {
+    return signPsbtFromMnemonic(mnemonic, psbt, network)
   }
 
-  async signPsbtWithSeed (_seed, psbt, _network) {
-    const wallet = this._binding.getRawWallet()
-    return wallet.signPsbt(psbt)
+  async signPsbtWithSeed (seed, psbt, network) {
+    return signPsbtFromSeed(seed, psbt, network)
   }
 
   async signMessage (params) {
@@ -31,10 +32,6 @@ export class BareSigner {
   }
 
   async estimateFee (psbt) {
-    // Rough estimate based on PSBT size
-    // More accurate estimation requires BDK which isn't available in bare
-    const sizeBytes = psbt.length * 3 / 4 // base64 → bytes approx
-    const vbytes = Math.ceil(sizeBytes * 0.4) // rough vbyte estimate
-    return { fee: vbytes, vsize: vbytes }
+    return estimatePsbt(psbt)
   }
 }
