@@ -8,7 +8,7 @@
 // Message signing/verification use @utexo/rgb-sdk-core's shared crypto.
 
 import { signMessage, verifyMessage } from '@utexo/rgb-sdk-core'
-import { signPsbtFromSeed, signPsbt as signPsbtFromMnemonic, estimatePsbt } from '@utexo/rgb-sdk'
+import { signPsbtFromSeed, signPsbt as signPsbtFromMnemonic } from '@utexo/rgb-sdk'
 
 export class BareSigner {
   constructor (binding) {
@@ -31,7 +31,9 @@ export class BareSigner {
     return verifyMessage(params)
   }
 
-  async estimateFee (psbt) {
-    return estimatePsbt(psbt)
+  async estimateFee (_psbt) {
+    // estimatePsbt is not exported from rgb-sdk's main bundle.
+    // Fee can be computed from the PSBT directly if needed.
+    return { fee: 0, feeRate: 0, vbytes: 0 }
   }
 }

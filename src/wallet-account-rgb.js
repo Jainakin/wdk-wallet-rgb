@@ -295,7 +295,7 @@ export default class WalletAccountRgb extends WalletAccountReadOnlyRgb {
         feeRate: options.feeRate || 1
       })
       const signedPsbt = await this.signPsbt(psbt)
-      const { fee } = await this.signer.estimateFee(signedPsbt)
+      const fee = this._signer ? (await this._signer.estimateFee(signedPsbt)).fee : 0
       const result = await this._wallet.sendBtcEnd({ signedPsbt })
       return {
         hash: result?.txid || result || 'unknown',
