@@ -254,22 +254,24 @@ export class BareRgbLibBinding {
   }
 
   async blindReceive (params) {
+    const assignment = params.assignment || { Fungible: params.amount ?? 0 }
     return parseResult(this._wallet.blindReceive(
       params.assetId || null,
-      toFFIString(params.assignment || 1),
-      toFFIString(params.durationSeconds),
+      toFFIString(assignment),
+      toFFIString(params.durationSeconds ?? 2000),
       toFFIString(params.transportEndpoints || [this._transportEndpoint]),
-      toFFIString(params.minConfirmations)
+      toFFIString(params.minConfirmations ?? 3)
     ))
   }
 
   async witnessReceive (params) {
+    const assignment = params.assignment || { Fungible: params.amount ?? 0 }
     return parseResult(this._wallet.witnessReceive(
       params.assetId || null,
-      toFFIString(params.assignment || 1),
-      toFFIString(params.durationSeconds),
+      toFFIString(assignment),
+      toFFIString(params.durationSeconds ?? 2000),
       toFFIString(params.transportEndpoints || [this._transportEndpoint]),
-      toFFIString(params.minConfirmations)
+      toFFIString(params.minConfirmations ?? 3)
     ))
   }
 
