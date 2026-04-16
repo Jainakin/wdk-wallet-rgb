@@ -596,7 +596,9 @@ export default class WalletAccountRgb extends WalletAccountReadOnlyRgb {
    * @returns {Promise<number>} number of UTXOs created.
    */
   async createUtxos (options) {
-    return await this._wallet.createUtxos(options)
+    const psbt = await this._wallet.createUtxosBegin(options)
+    const signedPsbt = await this.signPsbt(psbt)
+    return this._wallet.createUtxosEnd({ signedPsbt })
   }
 
   /**
@@ -622,6 +624,47 @@ export default class WalletAccountRgb extends WalletAccountReadOnlyRgb {
    */
   createUtxosEnd (options) {
     return this._wallet.createUtxosEnd(options)
+  }
+
+  /**
+   * Inflates an existing RGB IFA asset (combines inflateBegin, signPsbt, inflateEnd).
+   *
+   * @param {Object} options - Inflate options.
+   * @param {string} options.assetId - The asset ID to inflate.
+   * @param {number[]} options.amounts - Inflation amounts.
+   * @param {number} [options.feeRate] - Fee rate in sat/vbyte (default: 1).
+   * @param {number} [options.minConfirmations] - Minimum confirmations (default: 1).
+   * @returns {Promise<Object>} Operation result with txid and batch transfer info.
+   */
+  async inflate (options) {
+    const begin = await this._wallet.inflateBegin({
+      assetId: options.assetId,
+      amounts: options.amounts,
+      feeRate: options.feeRate || 1,
+      minConfirmations: options.minConfirmations || 1,
+      dryRun: false
+    })
+    const signedPsbt = await this.signPsbt(begin.psbt)
+    return this._wallet.inflateEnd({ signedPsbt })
+  }
+
+  /**
+   * Drains all wallet funds to the given address (combines drainToBegin, signPsbt, drainToEnd).
+   *
+   * @param {Object} options - Drain options.
+   * @param {string} options.address - The destination address.
+   * @param {boolean} [options.destroyAssets] - If true, also drain UTXOs holding RGB allocations.
+   * @param {number} [options.feeRate] - Fee rate in sat/vbyte (default: 1).
+   * @returns {Promise<string>} The broadcast transaction ID.
+   */
+  async drainTo (options) {
+    const psbt = await this._wallet.drainToBegin({
+      address: options.address,
+      destroyAssets: !!options.destroyAssets,
+      feeRate: options.feeRate || 1
+    })
+    const signedPsbt = await this.signPsbt(psbt)
+    return this._wallet.drainToEnd({ signedPsbt })
   }
 
   /**

@@ -31,6 +31,7 @@ function toFFIString (val) {
   if (val === null || val === undefined) return null
   if (typeof val === 'string') return val
   if (typeof val === 'number' || typeof val === 'bigint') return String(val)
+  if (Array.isArray(val)) return JSON.stringify(val.map(v => (typeof v === 'string' ? v : String(v))))
   return JSON.stringify(val)
 }
 
@@ -167,17 +168,30 @@ export class BareRgbLibBinding {
 
   async inflateBegin (params) {
     this.getOnline()
-    return this._wallet.inflate(
+    return parseResult(this._wallet.inflateBegin(
       this._online, params.assetId,
       toFFIString(params.amounts),
       toFFIString(params.feeRate),
-      toFFIString(params.minConfirmations)
-    )
+      toFFIString(params.minConfirmations),
+      !!params.dryRun
+    ))
   }
 
   async inflateEnd (params) {
     this.getOnline()
-    return parseResult(this._wallet.sendEnd(this._online, params.signedPsbt, false))
+    return parseResult(this._wallet.inflateEnd(this._online, params.signedPsbt))
+  }
+
+  async drainToBegin (params) {
+    this.getOnline()
+    return this._wallet.drainToBegin(
+      this._online, params.address, !!params.destroyAssets, toFFIString(params.feeRate)
+    )
+  }
+
+  async drainToEnd (params) {
+    this.getOnline()
+    return parseResult(this._wallet.drainToEnd(this._online, params.signedPsbt))
   }
 
   async sendBegin (params) {
