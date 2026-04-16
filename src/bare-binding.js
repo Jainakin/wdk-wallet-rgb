@@ -219,7 +219,7 @@ export class BareRgbLibBinding {
       recipientMap = { [assetId]: [recipient] }
     }
 
-    return this._wallet.sendBegin(
+    const result = parseResult(this._wallet.sendBegin(
       this._online,
       toFFIString(recipientMap),
       !!params.donation,
@@ -227,7 +227,8 @@ export class BareRgbLibBinding {
       toFFIString(params.minConfirmations),
       toFFIString(params.expirationTimestamp || null),
       !!params.dryRun
-    )
+    ))
+    return result?.psbt ?? result
   }
 
   async sendBeginBatch (params) {
