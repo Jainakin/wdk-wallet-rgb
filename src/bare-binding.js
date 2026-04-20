@@ -216,9 +216,16 @@ export class BareRgbLibBinding {
       // specific amount encodes {Fungible: 0} ("accept any"), which rgb-lib's
       // send_begin rejects as InvalidAmountZero. The sender's `params.amount`
       // drives the assignment, matching rgb-sdk (dist/index.mjs:632).
+      //
+      // Witness recipients (witnessReceive invoices) have "wvout:" in their
+      // recipientId and require witnessData (amountSat, blinding). Blind
+      // recipients use "utxob:" and must NOT have witnessData. Auto-detect
+      // the recipient type from the recipientId — matching rgb-sdk
+      // (dist/index.mjs:3362 `const isWitness = invoiceData.recipientId.includes("wvout:")`).
       let recipientId = params.invoice
       let transportEndpoints = params.transportEndpoints
       let invoiceAssetId
+      let isWitnessRecipient = false
       try {
         const inv = new rgblib.Invoice(params.invoice)
         const data = parseResult(inv.invoiceData())
@@ -228,6 +235,9 @@ export class BareRgbLibBinding {
           transportEndpoints = data.transportEndpoints
         }
         if (data && data.assetId) invoiceAssetId = data.assetId
+        if (data && typeof data.recipientId === 'string' && data.recipientId.includes('wvout:')) {
+          isWitnessRecipient = true
+        }
       } catch (_) {
         // If invoice decoding fails, fall through — rgb-lib sendBegin will
         // surface a clean error rather than crashing on our side.
@@ -240,6 +250,10 @@ export class BareRgbLibBinding {
       }
       if (params.witnessData) {
         recipient.witnessData = params.witnessData
+      } else if (isWitnessRecipient) {
+        // Default witness data: 1000 sats (above dust) and no blinding,
+        // matching rgb-sdk's default (dist/index.mjs:3370).
+        recipient.witnessData = { amountSat: 1000, blinding: 0 }
       }
       const assetId = params.assetId || invoiceAssetId || ''
       recipientMap = { [assetId]: [recipient] }
