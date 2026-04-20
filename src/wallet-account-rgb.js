@@ -322,20 +322,17 @@ export default class WalletAccountRgb extends WalletAccountReadOnlyRgb {
       throw new Error('recipient must be a valid RGB invoice string (starting with "rgb:"), not a Bitcoin address. Use receiveAsset() to generate an invoice.')
     }
 
-    // RGB SDK transfer flow:
+    // RGB SDK transfer flow (single sendBegin — do NOT pre-flight via quoteTransfer,
+    // since sendBegin reserves UTXO allocations on the wallet):
     // 1. Recipient calls blindReceive to get an invoice
-    // 2. Sender calls sendBegin with the invoice
+    // 2. Sender calls sendBegin with the invoice (reserves allocations)
     // 3. Sender signs the PSBT using signPsbt
-    // 4. Sender calls sendEnd with the signed PSBT
-
-    // Quote the transfer and validate fee before attempting the transfer
-    const { fee } = await this.quoteTransfer(options)
-    if (this._config.transferMaxFee !== undefined && fee >= this._config.transferMaxFee) {
-      throw new Error('Exceeded maximum fee cost for transfer operation.')
-    }
+    // 4. Sender enforces the transferMaxFee guard
+    // 5. Sender calls sendEnd with the signed PSBT (broadcasts the tx)
 
     try {
-      const psbt = this.sendBegin({
+      const feeRate = options.feeRate || 1
+      const psbt = await this.sendBegin({
         invoice: options.recipient,
         assetId: options.token,
         witnessData: options.witnessData
@@ -345,12 +342,22 @@ export default class WalletAccountRgb extends WalletAccountReadOnlyRgb {
             }
           : undefined,
         amount: options.amount,
-        feeRate: options.feeRate || 1,
-        minConfirmations: options.minConfirmations
+        feeRate,
+        minConfirmations: options.minConfirmations ?? 1
       })
 
       const signedPsbt = await this.signPsbt(psbt)
-      const result = this.sendEnd({
+
+      // Estimate fee from the signed PSBT (same formula as bare-binding.estimateFee)
+      // and enforce the transferMaxFee guard before broadcasting.
+      const sizeBytes = signedPsbt.length * 3 / 4
+      const estimatedVbytes = Math.ceil(sizeBytes * 0.4)
+      const fee = BigInt(feeRate * estimatedVbytes)
+      if (this._config.transferMaxFee !== undefined && fee >= BigInt(this._config.transferMaxFee)) {
+        throw new Error('Exceeded maximum fee cost for transfer operation.')
+      }
+
+      const result = await this.sendEnd({
         signedPsbt
       })
 
@@ -525,7 +532,12 @@ export default class WalletAccountRgb extends WalletAccountReadOnlyRgb {
       amount: tx.value,
       feeRate: tx.feeRate || 1
     })
-    const feeRate = Math.round(this._wallet.estimateFeeRate(1))
+    let feeRate = 1
+    try {
+      feeRate = Math.round(await this._wallet.estimateFeeRate(1))
+    } catch (e) {
+      feeRate = 1
+    }
     const estimatedVbytes = 140
     const fee = BigInt(feeRate * estimatedVbytes)
     return { fee, psbt }
@@ -538,24 +550,22 @@ export default class WalletAccountRgb extends WalletAccountReadOnlyRgb {
    * @returns {Promise<Omit<TransferResult, 'hash'>>} The transfer's quotes.
    */
   async quoteTransfer (options) {
-    const estimatedFeeRate = this._wallet.estimateFeeRate(1)
-    const feeRate = options.feeRate || estimatedFeeRate
-    const psbt = this._wallet.sendBegin({
-      invoice: options.recipient,
-      assetId: options.token,
-      witnessData: options.witnessData
-        ? {
-            amountSat: options.witnessData.amountSat,
-            blinding: options.witnessData.blinding
-          }
-        : undefined,
-      amount: options.amount,
-      feeRate: Math.round(feeRate),
-      minConfirmations: options.minConfirmations
-    })
-    const signedPsbt = await this.signPsbt(psbt)
-    const { fee } = await this._wallet.estimateFee(signedPsbt)
-    return { fee: BigInt(fee) }
+    // Lightweight fee quote — does NOT call sendBegin (which reserves UTXO
+    // allocations as a side effect). Conservative vbyte estimate for an RGB
+    // transfer including witness data; actual fee is computed during transfer()
+    // from the real signed PSBT and enforced against transferMaxFee there.
+    let feeRate = options.feeRate
+    if (!feeRate) {
+      try {
+        feeRate = await this._wallet.estimateFeeRate(1)
+      } catch (_) {
+        feeRate = 1
+      }
+    }
+    feeRate = Math.round(feeRate)
+    const estimatedVbytes = 200
+    const fee = BigInt(feeRate * estimatedVbytes)
+    return { fee }
   }
 
   /**

@@ -197,14 +197,10 @@ describe('WalletAccountRgb', () => {
 
     test('transfer performs RGB send flow', async () => {
       const { account, wallet } = await createAccount()
-      // Mock sendBegin to return a promise that resolves to psbt
-      wallet.sendBegin.mockReturnValue('psbt-bytes') // synchronous in v2
-      // signPsbt needs to handle the promise and resolve it
-      wallet.signPsbt.mockImplementation(async (psbt) => {
-        const resolvedPsbt = await psbt
-        return `signed:${resolvedPsbt}`
-      })
-      wallet.sendEnd.mockReturnValue({ txid: 'abc123' }) // synchronous in v2, returns txid
+      // sendBegin/sendEnd are awaited; signPsbt wraps the psbt string.
+      wallet.sendBegin.mockResolvedValue('psbt-bytes')
+      wallet.signPsbt.mockImplementation(async (psbt) => `signed:${psbt}`)
+      wallet.sendEnd.mockResolvedValue({ txid: 'abc123' })
       const result = await account.transfer({ token: 'asset-1', recipient: 'rgb:invoice-123', amount: 100 })
 
       expect(wallet.sendBegin).toHaveBeenCalledWith({
@@ -213,12 +209,13 @@ describe('WalletAccountRgb', () => {
         witnessData: undefined,
         amount: 100,
         feeRate: 1,
-        minConfirmations: undefined
+        minConfirmations: 1
       })
-      // signPsbt will be called with the promise
       expect(wallet.signPsbt).toHaveBeenCalled()
       expect(wallet.sendEnd).toHaveBeenCalledWith({ signedPsbt: 'signed:psbt-bytes' })
-      expect(result).toEqual({ hash: 'abc123', fee: BigInt(210) })
+      // fee is derived from signed PSBT size: ceil(len*3/4*0.4) * feeRate
+      // signedPsbt = 'signed:psbt-bytes' (17 chars) → 17*3/4=12.75 → *0.4=5.1 → ceil=6 → *1 = 6
+      expect(result).toEqual({ hash: 'abc123', fee: BigInt(6) })
     })
 
     test('getTransfers returns transfers without asset filter', async () => {

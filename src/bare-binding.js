@@ -206,25 +206,50 @@ export class BareRgbLibBinding {
     // Accept either { recipientMap } (raw format) or { invoice, assetId, amount } (WDK format)
     let recipientMap = params.recipientMap
     if (!recipientMap && params.invoice) {
-      // Convert WDK-style params to rgb-lib recipientMap format
+      // Decode the invoice to extract the real recipientId, transportEndpoints,
+      // assignment, and assetId — matching how rgb-sdk builds the recipient
+      // in Node. rgb-lib's Recipient.recipient_id is the decoded blinded UTXO /
+      // script (NOT the full "rgb:..." URI), and transportEndpoints carried in
+      // the invoice should be preferred over the sender's wallet fallback.
+      let recipientId = params.invoice
+      let transportEndpoints = params.transportEndpoints
+      let invoiceAssignment
+      let invoiceAssetId
+      try {
+        const inv = new rgblib.Invoice(params.invoice)
+        const data = parseResult(inv.invoiceData())
+        inv.drop()
+        if (data && data.recipientId) recipientId = data.recipientId
+        if (data && Array.isArray(data.transportEndpoints) && data.transportEndpoints.length && !transportEndpoints) {
+          transportEndpoints = data.transportEndpoints
+        }
+        if (data && data.assignment) invoiceAssignment = data.assignment
+        if (data && data.assetId) invoiceAssetId = data.assetId
+      } catch (_) {
+        // If invoice decoding fails, fall through — rgb-lib sendBegin will
+        // surface a clean error rather than crashing on our side.
+      }
+
       const recipient = {
-        recipientId: params.invoice,
-        witnessLevel: 1,
-        amount: params.amount || 1
+        recipientId,
+        assignment: params.assignment || invoiceAssignment || { Fungible: params.amount || 1 },
+        transportEndpoints: transportEndpoints || [this._transportEndpoint]
       }
       if (params.witnessData) {
         recipient.witnessData = params.witnessData
       }
-      const assetId = params.assetId || ''
+      const assetId = params.assetId || invoiceAssetId || ''
       recipientMap = { [assetId]: [recipient] }
     }
 
+    // fee_rate and min_confirmations are REQUIRED (ptr_to_num crashes on NULL).
+    // expiration_timestamp is optional (convert_optional_number handles NULL).
     const result = parseResult(this._wallet.sendBegin(
       this._online,
       toFFIString(recipientMap),
       !!params.donation,
-      toFFIString(params.feeRate),
-      toFFIString(params.minConfirmations),
+      toFFIString(params.feeRate ?? 1),
+      toFFIString(params.minConfirmations ?? 1),
       toFFIString(params.expirationTimestamp || null),
       !!params.dryRun
     ))
