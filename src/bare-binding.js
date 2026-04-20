@@ -207,13 +207,17 @@ export class BareRgbLibBinding {
     let recipientMap = params.recipientMap
     if (!recipientMap && params.invoice) {
       // Decode the invoice to extract the real recipientId, transportEndpoints,
-      // assignment, and assetId — matching how rgb-sdk builds the recipient
-      // in Node. rgb-lib's Recipient.recipient_id is the decoded blinded UTXO /
-      // script (NOT the full "rgb:..." URI), and transportEndpoints carried in
-      // the invoice should be preferred over the sender's wallet fallback.
+      // and assetId — matching how rgb-sdk builds the recipient in Node.
+      // rgb-lib's Recipient.recipient_id is the decoded blinded UTXO / script
+      // (NOT the full "rgb:..." URI). transportEndpoints carried in the invoice
+      // are preferred over the sender's wallet fallback.
+      //
+      // Note: we DO NOT take `assignment` from the invoice. An invoice with no
+      // specific amount encodes {Fungible: 0} ("accept any"), which rgb-lib's
+      // send_begin rejects as InvalidAmountZero. The sender's `params.amount`
+      // drives the assignment, matching rgb-sdk (dist/index.mjs:632).
       let recipientId = params.invoice
       let transportEndpoints = params.transportEndpoints
-      let invoiceAssignment
       let invoiceAssetId
       try {
         const inv = new rgblib.Invoice(params.invoice)
@@ -223,7 +227,6 @@ export class BareRgbLibBinding {
         if (data && Array.isArray(data.transportEndpoints) && data.transportEndpoints.length && !transportEndpoints) {
           transportEndpoints = data.transportEndpoints
         }
-        if (data && data.assignment) invoiceAssignment = data.assignment
         if (data && data.assetId) invoiceAssetId = data.assetId
       } catch (_) {
         // If invoice decoding fails, fall through — rgb-lib sendBegin will
@@ -232,7 +235,7 @@ export class BareRgbLibBinding {
 
       const recipient = {
         recipientId,
-        assignment: params.assignment || invoiceAssignment || { Fungible: params.amount || 1 },
+        assignment: params.assignment || { Fungible: params.amount || 1 },
         transportEndpoints: transportEndpoints || [this._transportEndpoint]
       }
       if (params.witnessData) {
