@@ -263,20 +263,7 @@ export default class WalletAccountRgb extends WalletAccountReadOnlyRgb {
     return await this._wallet.signMessage(message)
   }
 
-  /**
-   * Verifies a message's signature.
-   *
-   * @param {string} message - The original message.
-   * @param {string} signature - The signature to verify.
-   * @returns {Promise<boolean>} True if the signature is valid.
-   */
-  async verify (message, signature) {
-    if (this._signer) {
-      const keys = this._config.keys
-      return await this._signer.verifyMessage({ message, signature, accountXpub: keys?.accountXpubVanilla, network: this._config.network })
-    }
-    return await this._wallet.verifyMessage(message, signature)
-  }
+  // `verify(message, signature)` inherited from WalletAccountReadOnlyRgb.
 
   /**
    * Sends a Bitcoin transaction (for UTXO management).

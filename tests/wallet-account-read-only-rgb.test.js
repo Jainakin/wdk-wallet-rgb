@@ -16,7 +16,8 @@ jest.unstable_mockModule('@utexo/rgb-sdk-core', () => ({
     testnet: { public: 70617039, private: 70615956 },
     signet: { public: 70617039, private: 70615956 },
     regtest: { public: 70617039, private: 70615956 }
-  }
+  },
+  verifyMessage: jest.fn().mockResolvedValue(true)
 }))
 
 jest.unstable_mockModule('@utexo/rgb-lib-bare', () => ({

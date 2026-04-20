@@ -14,6 +14,7 @@
 'use strict'
 
 import { WalletAccountReadOnly } from '@tetherto/wdk-wallet'
+import { verifyMessage } from '@utexo/rgb-sdk-core'
 import { BareRgbLibBinding } from './bare-binding.js'
 
 /** @typedef {import('@tetherto/wdk-wallet').TransactionResult} TransactionResult */
@@ -90,6 +91,31 @@ export default class WalletAccountReadOnlyRgb extends WalletAccountReadOnly {
       dataDir,
       indexerUrl,
       transportEndpoint
+    })
+  }
+
+  /**
+   * Verifies a message's signature.
+   *
+   * Required by `@tetherto/wdk-wallet@1.0.0-beta.7`'s `IWalletAccountReadOnly`
+   * interface. Message verification is public (no private key needed) — we
+   * delegate to rgb-sdk-core's `verifyMessage`, which expects the vanilla
+   * BIP-86 xpub that was derived from the owner's seed.
+   *
+   * @param {string} message - The original message.
+   * @param {string} signature - The signature to verify.
+   * @returns {Promise<boolean>} True if the signature is valid.
+   */
+  async verify (message, signature) {
+    const { keys, network } = this._config
+    if (!keys || !keys.accountXpubVanilla) {
+      throw new Error('accountXpubVanilla is required on the read-only account to verify a signature')
+    }
+    return verifyMessage({
+      message,
+      signature,
+      accountXpub: keys.accountXpubVanilla,
+      network
     })
   }
 

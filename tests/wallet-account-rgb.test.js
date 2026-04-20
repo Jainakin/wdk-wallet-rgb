@@ -332,11 +332,19 @@ describe('WalletAccountRgb', () => {
       expect(wallet.signMessage).toHaveBeenCalledWith('hello rgb')
     })
 
-    test('verify delegates to wallet manager', async () => {
-      const { account, wallet } = await createAccount()
+    test('verify delegates to rgb-sdk-core verifyMessage (inherited from read-only)', async () => {
+      const { account } = await createAccount()
+      // verify() lives on the read-only class and uses rgb-sdk-core.verifyMessage
+      // with the wallet's accountXpubVanilla + network. The mocked rgb-sdk-core
+      // resolves verifyMessage to `true`.
       const isValid = await account.verify('hello rgb', 'signed-message')
       expect(isValid).toBe(true)
-      expect(wallet.verifyMessage).toHaveBeenCalledWith('hello rgb', 'signed-message')
+    })
+
+    test('verify throws when accountXpubVanilla is missing', async () => {
+      const { account } = await createAccount({}, { accountXpubVanilla: undefined })
+      await expect(account.verify('hello rgb', 'signed-message'))
+        .rejects.toThrow(/accountXpubVanilla is required/)
     })
 
     test('createBackup delegates to wallet manager and returns success response', async () => {
