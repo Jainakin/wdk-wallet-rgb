@@ -281,7 +281,8 @@ export default class WalletAccountRgb extends WalletAccountReadOnlyRgb {
   /**
    * Sends a Bitcoin transaction (for UTXO management).
    * Note: For RGB asset transfers, use transfer() instead.
-   * This method uses the RGB SDK's sendBegin/sendEnd flow for Bitcoin transactions.
+   * This method uses the bare-binding's sendBtcBegin → external sign → sendBtcEnd
+   * flow since the underlying rgb-lib wallet is watch-only.
    *
    * @param {RgbTransaction} tx - The transaction.
    * @returns {Promise<TransactionResult>} The transaction's result.
@@ -292,7 +293,7 @@ export default class WalletAccountRgb extends WalletAccountReadOnlyRgb {
       const psbt = await this._wallet.sendBtcBegin({
         address: options.to,
         amount: options.value,
-        feeRate: options.feeRate || 1
+        feeRate: Math.max(1, Math.round(options.feeRate || 1))
       })
       const signedPsbt = await this.signPsbt(psbt)
       const fee = this._signer ? (await this._signer.estimateFee(signedPsbt)).fee : 0
@@ -302,7 +303,7 @@ export default class WalletAccountRgb extends WalletAccountReadOnlyRgb {
         fee: BigInt(fee)
       }
     } catch (error) {
-      throw new Error(`RGB transfer failed: ${error.message}`)
+      throw new Error(`BTC send failed: ${error.message}`)
     }
   }
 
@@ -331,7 +332,10 @@ export default class WalletAccountRgb extends WalletAccountReadOnlyRgb {
     // 5. Sender calls sendEnd with the signed PSBT (broadcasts the tx)
 
     try {
-      const feeRate = options.feeRate || 1
+      // Clamp to >= 1 sat/vB: rgb-lib's C-FFI expects a uint (ptr_to_num::<u32>),
+      // so floats like 0.5 would break conversion, and a value of 0 would
+      // produce an unbroadcastable tx (fee = 0 never confirms).
+      const feeRate = Math.max(1, Math.round(options.feeRate || 1))
       const psbt = await this.sendBegin({
         invoice: options.recipient,
         assetId: options.token,
@@ -415,7 +419,8 @@ export default class WalletAccountRgb extends WalletAccountReadOnlyRgb {
 
   /**
    * Disposes the wallet account, erasing its private keys from the memory.
-   * Note: RGB SDK manages keys internally, but we clear our derived keyPair.
+   * Note: rgb-lib manages its own keys (via the watch-only xpub); we clear
+   * our derived keyPair here.
    */
   dispose () {
     if (this._keyPair?.privateKey) {
@@ -433,10 +438,11 @@ export default class WalletAccountRgb extends WalletAccountReadOnlyRgb {
   // ============================================================================
 
   /**
-   * Gets the underlying RGB SDK WalletManager instance.
-   * This allows direct access to all RGB SDK methods.
+   * Gets the underlying BareRgbLibBinding instance.
+   * Lets callers reach low-level binding methods that aren't yet
+   * exposed on WalletAccountRgb.
    *
-   * @returns {WalletManager} The RGB SDK WalletManager instance.
+   * @returns {BareRgbLibBinding} The bare-binding instance.
    */
   getRgbWallet () {
     return this._wallet
@@ -534,7 +540,9 @@ export default class WalletAccountRgb extends WalletAccountReadOnlyRgb {
     })
     let feeRate = 1
     try {
-      feeRate = Math.round(await this._wallet.estimateFeeRate(1))
+      // Clamp to >= 1: estimateFeeRate can return <1 sat/vB on low-activity
+      // regtest / idle mainnet; Math.round(0.3) → 0 would produce a stuck tx.
+      feeRate = Math.max(1, Math.round(await this._wallet.estimateFeeRate(1)))
     } catch (e) {
       feeRate = 1
     }
@@ -562,7 +570,8 @@ export default class WalletAccountRgb extends WalletAccountReadOnlyRgb {
         feeRate = 1
       }
     }
-    feeRate = Math.round(feeRate)
+    // Clamp to >= 1 sat/vB (see comment in transfer() re: rgb-lib uint coercion).
+    feeRate = Math.max(1, Math.round(feeRate))
     const estimatedVbytes = 200
     const fee = BigInt(feeRate * estimatedVbytes)
     return { fee }
@@ -725,7 +734,7 @@ export default class WalletAccountRgb extends WalletAccountReadOnlyRgb {
    * @param {options} options - The options.
    * @param {string} options.password - The password used to encrypt the backup file.
    * @param {string} options.backupPath - The backup path.
-   * @returns {{message: string, downloadUrl: string}} The backup response from @utexo/rgb-sdk-core.
+   * @returns {{success: boolean}} The backup response from the bare-binding.
    */
   createBackup (options) {
     return this._wallet.createBackup(options)
@@ -735,7 +744,7 @@ export default class WalletAccountRgb extends WalletAccountReadOnlyRgb {
    * Restores a wallet from a backup file.
    *
    * @param {RgbRestoreParams} params - Restore options.
-   * @returns {{message: string}} The restore response from @utexo/rgb-sdk-core.
+   * @returns {{message: string}} The restore response from rgb-lib.
    */
   restoreFromBackup (params) {
     return rgblib.restoreBackup(params.backupFilePath, params.password, params.dataDir)

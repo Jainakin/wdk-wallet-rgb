@@ -374,6 +374,10 @@ export class BareRgbLibBinding {
     return { success: true }
   }
 
+  async backupInfo () {
+    return parseResult(this._wallet.backupInfo())
+  }
+
   configureVssBackup (config) {
     this._wallet.configureVssBackup(toFFIString(config))
   }
@@ -467,11 +471,22 @@ export class BareRgbLibBinding {
     ))
   }
 
-  sendBtc (address, amount, feeRate) {
-    this.getOnline()
-    return parseResult(this._wallet.sendBtc(
-      this._online, address, toFFIString(amount), toFFIString(feeRate), false
-    ))
+  /**
+   * One-shot BTC send — IRgbLibBinding interface compliance.
+   *
+   * Not supported on the bare binding: this wallet is watch-only
+   * (mnemonic: null), so rgb-lib's internal signing path can't run.
+   * Callers must use sendBtcBegin → external sign (e.g. BareSigner)
+   * → sendBtcEnd instead. See WalletAccountRgb.sendTransaction.
+   *
+   * @param {{ address: string, amount: number, feeRate: number, skipSync?: boolean }} _params
+   * @returns {Promise<string>} never — always throws
+   */
+  async sendBtc (_params) {
+    throw new Error(
+      'sendBtc is not supported on the watch-only bare binding. ' +
+      'Use sendBtcBegin → signPsbt → sendBtcEnd (see WalletAccountRgb.sendTransaction).'
+    )
   }
 
   dispose () {
