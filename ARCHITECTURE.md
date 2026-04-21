@@ -144,7 +144,11 @@ All methods below are dispatched via `AccountService.callAccountMethod(network='
   picks the correct module graph.
 - Native addons (rgb-lib-bare) are resolved by the bundler from
   `@utexo/rgb-lib-bare`'s `prebuilds/` directory — no manual bundle
-  merging required.
+  merging required. `@utexo/rgb-lib-bare` ships as a **source-only npm
+  package** (`^0.3.0-beta.18`); a `postinstall` hook downloads the
+  per-platform static libs (`lib/`) and bare addons (`prebuilds/`) from
+  that version's GitHub Release on `npm install`. No binaries live in
+  git; there is nothing to rebuild or copy by hand.
 
 ## Signing model
 
