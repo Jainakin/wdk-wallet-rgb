@@ -459,6 +459,96 @@ export default class WalletAccountRgb extends WalletAccountReadOnlyRgb {
   }
 
   /**
+   * Issues a new CFA (Collectible Fungible Asset).
+   *
+   * @param {Object} options - Issue options.
+   * @param {string} options.name - Asset name.
+   * @param {Array<number>} options.amounts - Array of amounts to issue.
+   * @param {number} options.precision - Decimal precision.
+   * @param {string} [options.details] - Optional asset details/description.
+   * @param {string} [options.filePath] - Optional media file path.
+   * @returns {IssueAssetCFA} The issued asset.
+   */
+  issueAssetCfa (options) {
+    return this._wallet.issueAssetCfa(options)
+  }
+
+  /**
+   * Issues a new UDA (Unique Digital Asset / NFT).
+   *
+   * @param {Object} options - Issue options.
+   * @param {string} options.ticker - Asset ticker symbol.
+   * @param {string} options.name - Asset name.
+   * @param {number} options.precision - Decimal precision.
+   * @param {string} [options.details] - Optional asset details/description.
+   * @param {string} [options.mediaFilePath] - Optional primary media file.
+   * @param {Array<string>} [options.attachmentsFilePaths] - Optional attachments.
+   * @returns {IssueAssetUDA} The issued asset.
+   */
+  issueAssetUda (options) {
+    return this._wallet.issueAssetUda(options)
+  }
+
+  /**
+   * Issues a new IFA (Inflatable Fungible Asset).
+   *
+   * @param {Object} options - Issue options.
+   * @param {string} options.ticker - Asset ticker symbol.
+   * @param {string} options.name - Asset name.
+   * @param {number} options.precision - Decimal precision.
+   * @param {Array<number>} options.amounts - Initial amounts to issue.
+   * @param {Array<number>} options.inflationAmounts - Amounts available for later inflation.
+   * @param {string} [options.rejectListUrlOpt] - Optional reject-list URL.
+   * @returns {IssueAssetIFA} The issued asset.
+   */
+  issueAssetIfa (options) {
+    return this._wallet.issueAssetIfa(options)
+  }
+
+  // `getTokenBalance` is inherited from WalletAccountReadOnlyRgb — it
+  // returns a BigInt of the settled balance, which pear-wrk-wdk's
+  // safeStringify converts to a numeric string on the wire so WDK core's
+  // balance validator accepts it. No override needed here.
+
+  /**
+   * Full balance breakdown: `{settled, future, spendable}`. Returned
+   * as-is from rgb-lib for callers that need the three-component view.
+   */
+  getAssetBalance (assetId) {
+    return this._wallet.getAssetBalance(assetId)
+  }
+
+  /**
+   * Estimates the current fee rate for inclusion in `blocks`.
+   *
+   * @param {number} blocks - Target confirmation blocks.
+   * @returns {Promise<number>} Fee rate in sat/vB (clamped ≥ 1).
+   */
+  estimateFeeRate (blocks) {
+    return this._wallet.estimateFeeRate(blocks)
+  }
+
+  /**
+   * Reads backup metadata (name, needsBackup, lastBackupTs, etc.).
+   *
+   * @returns {Promise<Object>}
+   */
+  backupInfo () {
+    return this._wallet.backupInfo()
+  }
+
+  /**
+   * Parses an RGB invoice string and returns its structured fields
+   * (recipientId, assetId, amount, transportEndpoints, …).
+   *
+   * @param {{invoice: string}} options
+   * @returns {Promise<Object>}
+   */
+  decodeRGBInvoice (options) {
+    return this._wallet.decodeRGBInvoice(options)
+  }
+
+  /**
    * Creates a blind receive invoice for receiving RGB assets.
    *
    * @param {Object} options - Blind receive options.
