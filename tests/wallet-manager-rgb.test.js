@@ -93,7 +93,8 @@ describe('WalletManagerRgb', () => {
   beforeEach(() => {
     wallet = new WalletManagerRgb(SEED_PHRASE, {
       network: 'regtest',
-      transportEndpoint: 'http://127.0.0.1:8000'
+      transportEndpoint: 'http://127.0.0.1:8000',
+      dataDir: '/tmp/rgb-test-manager'
     })
   })
 
@@ -108,10 +109,17 @@ describe('WalletManagerRgb', () => {
       }).toThrow('network configuration is required.')
     })
 
+    test('should throw error if dataDir is not provided', () => {
+      expect(() => {
+        new WalletManagerRgb(SEED_PHRASE, { network: 'regtest' })
+      }).toThrow(/dataDir is required/)
+    })
+
     test('should create a wallet manager with custom config', () => {
       const customWallet = new WalletManagerRgb(SEED_PHRASE, {
         network: 'testnet',
-        transportEndpoint: 'http://localhost:8000'
+        transportEndpoint: 'http://localhost:8000',
+        dataDir: '/tmp/rgb-test-manager-custom'
       })
       expect(customWallet).toBeInstanceOf(WalletManagerRgb)
       customWallet.dispose()

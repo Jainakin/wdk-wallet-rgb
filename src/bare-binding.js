@@ -6,9 +6,7 @@
 
 import rgblib from '@utexo/rgb-lib-bare'
 import { DEFAULT_TRANSPORT_ENDPOINTS, DEFAULT_INDEXER_URLS } from '@utexo/rgb-sdk-core'
-import os from 'os'
 import fs from 'bare-fs'
-import path from 'bare-path'
 
 function mapNetwork (network) {
   const map = {
@@ -52,10 +50,23 @@ export class BareRgbLibBinding {
     this._transportEndpoint = params.transportEndpoint || DEFAULT_TRANSPORT_ENDPOINTS[network] || DEFAULT_TRANSPORT_ENDPOINTS.signet
     this._indexerUrl = params.indexerUrl || DEFAULT_INDEXER_URLS[network] || DEFAULT_INDEXER_URLS.signet
 
-    const defaultDataDir = path.join(os.tmpdir(), 'rgb-wallet')
-    const dataDir = params.dataDir || defaultDataDir
+    // `dataDir` is where rgb-lib keeps its SQLite database of UTXOs,
+    // RGB allocations, asset metadata, and in-flight transfer state.
+    // Losing it means the wallet's BTC balances look right (derived from
+    // seed) but every asset appears to vanish. There is no sensible
+    // default — the caller must supply a *persistent, app-private* path
+    // appropriate for the runtime (e.g. iOS `Library/Application Support`,
+    // Android `filesDir`, or any durable path in a Node/CLI context).
+    if (!params.dataDir || typeof params.dataDir !== 'string') {
+      throw new Error(
+        'dataDir is required for the RGB wallet — pass a persistent, ' +
+        'app-private path via the wallet config. See ' +
+        'utexo-rgb-wdk/NEW_ARCHITECTURE.md for platform guidance.'
+      )
+    }
+    const dataDir = params.dataDir
 
-    // Ensure the data directory exists (rgb-lib requires it)
+    // Ensure the data directory exists (rgb-lib refuses to open otherwise).
     try {
       fs.mkdirSync(dataDir, { recursive: true })
     } catch (err) {

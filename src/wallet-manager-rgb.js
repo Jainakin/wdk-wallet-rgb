@@ -37,6 +37,13 @@ export default class WalletManagerRgb extends WalletManager {
     if (!config.network) {
       throw new Error('network configuration is required.')
     }
+    if (!config.dataDir) {
+      throw new Error(
+        'dataDir is required — pass a persistent, app-private path for ' +
+        'rgb-lib\'s SQLite state (e.g. iOS Library/Application Support, ' +
+        'Android filesDir).'
+      )
+    }
 
     /** @private */
     this._network = config.network

@@ -53,7 +53,8 @@ describe('WalletAccountReadOnlyRgb', () => {
       const account = new WalletAccountReadOnlyRgb(address, {
         keys: mockKeys,
         network: 'testnet',
-        transportEndpoint: 'https://rgb-node.test.thunderstack.org'
+        transportEndpoint: 'https://rgb-node.test.thunderstack.org',
+        dataDir: '/tmp/rgb-test-read-only'
       })
       expect(account).toBeInstanceOf(WalletAccountReadOnlyRgb)
       // The address is passed to the parent class constructor
@@ -64,7 +65,8 @@ describe('WalletAccountReadOnlyRgb', () => {
       const defaultAccount = new WalletAccountReadOnlyRgb('bc1p...', {
         keys: mockKeys,
         network: 'testnet',
-        transportEndpoint: 'https://rgb-node.test.thunderstack.org'
+        transportEndpoint: 'https://rgb-node.test.thunderstack.org',
+        dataDir: '/tmp/rgb-test-read-only'
       })
       expect(defaultAccount).toBeInstanceOf(WalletAccountReadOnlyRgb)
     })
@@ -75,7 +77,8 @@ describe('WalletAccountReadOnlyRgb', () => {
       expect(() => {
         new WalletAccountReadOnlyRgb('bc1p...', {
           network: 'testnet',
-          transportEndpoint: 'https://rgb-node.test.thunderstack.org'
+          transportEndpoint: 'https://rgb-node.test.thunderstack.org',
+          dataDir: '/tmp/rgb-test-read-only'
         })
       }).toThrow('Wallet keys are required for read-only account')
     })
@@ -84,9 +87,20 @@ describe('WalletAccountReadOnlyRgb', () => {
       expect(() => {
         new WalletAccountReadOnlyRgb('bc1p...', {
           keys: mockKeys,
-          transportEndpoint: 'https://rgb-node.test.thunderstack.org'
+          transportEndpoint: 'https://rgb-node.test.thunderstack.org',
+          dataDir: '/tmp/rgb-test-read-only'
         })
       }).toThrow('Network configuration is required.')
+    })
+
+    test('should throw error if dataDir is not provided', () => {
+      expect(() => {
+        new WalletAccountReadOnlyRgb('bc1p...', {
+          keys: mockKeys,
+          network: 'testnet',
+          transportEndpoint: 'https://rgb-node.test.thunderstack.org'
+        })
+      }).toThrow(/dataDir is required/)
     })
   })
 })

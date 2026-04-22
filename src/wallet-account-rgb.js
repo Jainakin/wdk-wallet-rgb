@@ -99,6 +99,9 @@ export default class WalletAccountRgb extends WalletAccountReadOnlyRgb {
     if (!config.network) {
       throw new Error('Network is required')
     }
+    if (!config.dataDir) {
+      throw new Error('dataDir is required — pass a persistent, app-private path.')
+    }
 
     const { network, indexerUrl, transportEndpoint, dataDir } = config
     const binding = new BareRgbLibBinding({

@@ -46,11 +46,15 @@ import { BareRgbLibBinding } from './bare-binding.js'
 /**
  * @typedef {Object} RgbWalletConfig
  * @property {'mainnet' | 'testnet' | 'regtest'} network - The network (required).
+ * @property {string} dataDir - Persistent app-private path for rgb-lib's
+ *   SQLite state (required). Losing this directory loses all RGB asset
+ *   allocations. Pick a path that survives app upgrades and is excluded
+ *   from OS-level temp cleanup (iOS `Library/Application Support/...`,
+ *   Android `filesDir/...`, any stable path in a Node context).
  * @property {Object} [keys] - The wallet keys (accountXpubVanilla, accountXpubColored, masterFingerprint, mnemonic).
  * @property {string} [indexerUrl] - Electrs indexer URL.
  * @property {string} [transportEndpoint] - Transport endpoint.
  * @property {number | bigint} [transferMaxFee] - The maximum fee amount for transfer operations.
- * @property {string} [dataDir] - RGB state data directory.
  */
 
 export default class WalletAccountReadOnlyRgb extends WalletAccountReadOnly {
@@ -77,6 +81,10 @@ export default class WalletAccountReadOnlyRgb extends WalletAccountReadOnly {
 
     if (!this._config.network) {
       throw new Error('Network configuration is required.')
+    }
+
+    if (!this._config.dataDir) {
+      throw new Error('dataDir is required — pass a persistent, app-private path.')
     }
 
     const { keys, indexerUrl, transportEndpoint, dataDir, network } = this._config

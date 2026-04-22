@@ -115,6 +115,9 @@ beforeAll(async () => {
 const createAccountConfig = (configOverrides = {}, keysOverrides = {}) => ({
   network: 'regtest',
   transportEndpoint: 'http://127.0.0.1:8000',
+  // Tests mock the bare binding so no real fs access happens — but the
+  // API now requires dataDir to be set on every wallet-facing config.
+  dataDir: '/tmp/rgb-test',
   keys: {
     ...mockKeysBase,
     ...keysOverrides
@@ -146,6 +149,13 @@ describe('WalletAccountRgb', () => {
 
     test('should throw error if keys are not provided', async () => {
       await expect(WalletAccountRgb.at(SEED_PHRASE, {})).rejects.toThrow('Wallet keys are required')
+    })
+
+    test('should throw error if dataDir is missing', async () => {
+      await expect(WalletAccountRgb.at(SEED_PHRASE, {
+        keys: mockKeysBase,
+        network: 'regtest'
+      })).rejects.toThrow(/dataDir is required/)
     })
   })
 
