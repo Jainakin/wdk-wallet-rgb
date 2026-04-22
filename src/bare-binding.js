@@ -39,6 +39,7 @@ function resolveExpirationTimestamp (params) {
   return null
 }
 
+/** @implements {import('@utexo/rgb-sdk-core').IRgbLibBinding} */
 export class BareRgbLibBinding {
   constructor (params) {
     this._params = params
@@ -60,8 +61,8 @@ export class BareRgbLibBinding {
     if (!params.dataDir || typeof params.dataDir !== 'string') {
       throw new Error(
         'dataDir is required for the RGB wallet — pass a persistent, ' +
-        'app-private path via the wallet config. See ' +
-        'utexo-rgb-wdk/NEW_ARCHITECTURE.md for platform guidance.'
+        'app-private path (iOS Documents/, Android filesDir, or any ' +
+        'durable path in a Node context).'
       )
     }
     const dataDir = params.dataDir
@@ -226,13 +227,12 @@ export class BareRgbLibBinding {
       // Note: we DO NOT take `assignment` from the invoice. An invoice with no
       // specific amount encodes {Fungible: 0} ("accept any"), which rgb-lib's
       // send_begin rejects as InvalidAmountZero. The sender's `params.amount`
-      // drives the assignment, matching rgb-sdk (dist/index.mjs:632).
+      // drives the assignment, matching rgb-sdk's behaviour.
       //
       // Witness recipients (witnessReceive invoices) have "wvout:" in their
       // recipientId and require witnessData (amountSat, blinding). Blind
       // recipients use "utxob:" and must NOT have witnessData. Auto-detect
-      // the recipient type from the recipientId — matching rgb-sdk
-      // (dist/index.mjs:3362 `const isWitness = invoiceData.recipientId.includes("wvout:")`).
+      // the recipient type from the recipientId prefix.
       let recipientId = params.invoice
       let transportEndpoints = params.transportEndpoints
       let invoiceAssetId
@@ -263,7 +263,7 @@ export class BareRgbLibBinding {
         recipient.witnessData = params.witnessData
       } else if (isWitnessRecipient) {
         // Default witness data: 1000 sats (above dust) and no blinding,
-        // matching rgb-sdk's default (dist/index.mjs:3370).
+        // matching rgb-sdk's default.
         recipient.witnessData = { amountSat: 1000, blinding: 0 }
       }
       const assetId = params.assetId || invoiceAssetId || ''

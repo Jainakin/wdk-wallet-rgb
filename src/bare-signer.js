@@ -10,6 +10,7 @@
 import { signMessage, verifyMessage } from '@utexo/rgb-sdk-core'
 import { signPsbtFromSeed, signPsbt as signPsbtFromMnemonic } from '@utexo/rgb-sdk'
 
+/** @implements {import('@utexo/rgb-sdk-core').ISigner} */
 export class BareSigner {
   constructor (binding) {
     this._binding = binding
