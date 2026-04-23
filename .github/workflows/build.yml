@@ -25,6 +25,7 @@ jobs:
         run: npm install
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
       
       - name: Lint
         run: npm run lint
