@@ -9,29 +9,34 @@ const mockKeys = {
   xpriv: 'tprv8ZgxMBicQKsPdQaFUyyJodvPVicQ6HxagSy18xrJmd8GPHUD1YuDR5WXL9eUDiNnLfkufjL2EwzWpnkiyck5da731zevC4t34QyR69uTSSX'
 }
 
-// Mock @utexo/rgb-sdk before importing anything that uses it
-jest.unstable_mockModule('@utexo/rgb-sdk', () => {
-  const mockWalletManagerInstance = {
+// Mock modules before importing anything that uses them
+jest.unstable_mockModule('@utexo/rgb-sdk-core', () => ({
+  BIP32_VERSIONS: {
+    mainnet: { public: 76067358, private: 76066276 },
+    testnet: { public: 70617039, private: 70615956 },
+    signet: { public: 70617039, private: 70615956 },
+    regtest: { public: 70617039, private: 70615956 }
+  },
+  verifyMessage: jest.fn().mockResolvedValue(true)
+}))
+
+jest.unstable_mockModule('@utexo/rgb-lib-bare', () => ({
+  default: { Wallet: jest.fn(), dropOnline: jest.fn() }
+}))
+
+jest.unstable_mockModule('../src/bare-binding.js', () => {
+  const mockInstance = {
     getBtcBalance: jest.fn().mockResolvedValue({ vanilla: { settled: 1000000 } }),
     getAssetBalance: jest.fn().mockResolvedValue({ settled: 500000 }),
-    sendBtcBegin: jest.fn().mockResolvedValue('psbt-bytes'),
+    sendBegin: jest.fn().mockResolvedValue('psbt-bytes'),
     signPsbt: jest.fn().mockResolvedValue('signed-psbt'),
     estimateFee: jest.fn().mockResolvedValue({ fee: 1000 }),
     estimateFeeRate: jest.fn().mockResolvedValue(1),
-    sendBegin: jest.fn().mockResolvedValue('psbt-bytes'),
     listTransactions: jest.fn().mockResolvedValue([]),
-    listTransfers: jest.fn().mockResolvedValue([])
+    listTransfers: jest.fn().mockResolvedValue([]),
+    getOnline: jest.fn()
   }
-
-  return {
-    WalletManager: jest.fn().mockImplementation(() => mockWalletManagerInstance),
-    BIP32_VERSIONS: {
-      mainnet: { public: 76067358, private: 76066276 },
-      testnet: { public: 70617039, private: 70615956 },
-      signet: { public: 70617039, private: 70615956 },
-      regtest: { public: 70617039, private: 70615956 }
-    }
-  }
+  return { BareRgbLibBinding: jest.fn().mockImplementation(() => mockInstance) }
 })
 
 let WalletAccountReadOnlyRgb
@@ -48,7 +53,8 @@ describe('WalletAccountReadOnlyRgb', () => {
       const account = new WalletAccountReadOnlyRgb(address, {
         keys: mockKeys,
         network: 'testnet',
-        transportEndpoint: 'https://rgb-node.test.thunderstack.org'
+        transportEndpoint: 'https://rgb-node.test.thunderstack.org',
+        dataDir: '/tmp/rgb-test-read-only'
       })
       expect(account).toBeInstanceOf(WalletAccountReadOnlyRgb)
       // The address is passed to the parent class constructor
@@ -59,7 +65,8 @@ describe('WalletAccountReadOnlyRgb', () => {
       const defaultAccount = new WalletAccountReadOnlyRgb('bc1p...', {
         keys: mockKeys,
         network: 'testnet',
-        transportEndpoint: 'https://rgb-node.test.thunderstack.org'
+        transportEndpoint: 'https://rgb-node.test.thunderstack.org',
+        dataDir: '/tmp/rgb-test-read-only'
       })
       expect(defaultAccount).toBeInstanceOf(WalletAccountReadOnlyRgb)
     })
@@ -70,7 +77,8 @@ describe('WalletAccountReadOnlyRgb', () => {
       expect(() => {
         new WalletAccountReadOnlyRgb('bc1p...', {
           network: 'testnet',
-          transportEndpoint: 'https://rgb-node.test.thunderstack.org'
+          transportEndpoint: 'https://rgb-node.test.thunderstack.org',
+          dataDir: '/tmp/rgb-test-read-only'
         })
       }).toThrow('Wallet keys are required for read-only account')
     })
@@ -79,9 +87,20 @@ describe('WalletAccountReadOnlyRgb', () => {
       expect(() => {
         new WalletAccountReadOnlyRgb('bc1p...', {
           keys: mockKeys,
-          transportEndpoint: 'https://rgb-node.test.thunderstack.org'
+          transportEndpoint: 'https://rgb-node.test.thunderstack.org',
+          dataDir: '/tmp/rgb-test-read-only'
         })
       }).toThrow('Network configuration is required.')
+    })
+
+    test('should throw error if dataDir is not provided', () => {
+      expect(() => {
+        new WalletAccountReadOnlyRgb('bc1p...', {
+          keys: mockKeys,
+          network: 'testnet',
+          transportEndpoint: 'https://rgb-node.test.thunderstack.org'
+        })
+      }).toThrow(/dataDir is required/)
     })
   })
 })

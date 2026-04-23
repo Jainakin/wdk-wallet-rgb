@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 'use strict'
-/** @typedef {import('@utexo/rgb-sdk').Transaction} RgbTransactionReceipt */
-/** @typedef {import('@utexo/rgb-sdk').RgbTransfer} RgbTransferReceipt */
+/** @typedef {import('@utexo/rgb-sdk-core').Transaction} RgbTransactionReceipt */
+/** @typedef {import('@utexo/rgb-sdk-core').RgbTransfer} RgbTransferReceipt */
 /** @typedef {import('@tetherto/wdk-wallet').FeeRates} FeeRates */
 /** @typedef {import('@tetherto/wdk-wallet').KeyPair} KeyPair */
 /** @typedef {import('@tetherto/wdk-wallet').TransactionResult} TransactionResult */
