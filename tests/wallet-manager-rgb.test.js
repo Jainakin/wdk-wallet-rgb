@@ -8,57 +8,81 @@ const mockKeys = {
   accountXpubColored: 'tpubDDPLJfdVbDoGtnn6hSto3oCnm6hpfHe9uk2MxcANanxk87EuquhSVfSLQv7e5UykgzaFn41DUXaikjjVGcUSUTGNaJ9LcozfRwatKp1vTfC',
   masterFingerprint: 'a66bffef',
 };
-// Mock @utexo/rgb-sdk before importing anything that uses it
-jest.unstable_mockModule('@utexo/rgb-sdk', () => {
-
-
-  const mockWalletManagerInstance = {
-    registerWallet: jest.fn().mockResolvedValue(undefined),
-    getAddress: jest.fn().mockResolvedValue('bc1p...'),
-    getBtcBalance: jest.fn().mockResolvedValue(1000000),
-    getAssetBalance: jest.fn().mockResolvedValue(500000),
-    listAssets: jest.fn().mockResolvedValue([]),
-    listTransfers: jest.fn().mockResolvedValue([]),
-    sendBegin: jest.fn().mockResolvedValue('cHNidP8BA...'),
-    signPsbt: jest.fn().mockReturnValue('cHNidP8BA...'),
-    sendEnd: jest.fn().mockResolvedValue({ txid: 'abc123' }),
-    send: jest.fn().mockResolvedValue({ txid: 'abc123' }),
-    blindReceive: jest.fn().mockResolvedValue({ invoice: 'rgb1...' }),
-    issueAssetNia: jest.fn().mockResolvedValue({
-      asset: {
-        asset_id: 'rgb:2dkSTbr-jFhznbPmo-TQafzswCN-av4gTsJjX-ttx6CNou5-M98k8Zd',
-        assetIface: 'RGB20',
-        ticker: 'TEST',
-        name: 'Test Asset',
-        precision: 0,
-        issued_supply: 500,
-        timestamp: 1691160565,
-        added_at: 1691161979
-      }
-    }),
-    createUtxosBegin: jest.fn().mockResolvedValue('cHNidP8BA...'),
-    createUtxosEnd: jest.fn().mockResolvedValue(5),
-    listUnspents: jest.fn().mockResolvedValue([]),
-    listTransactions: jest.fn().mockResolvedValue([]),
-    refreshWallet: jest.fn().mockResolvedValue(undefined)
-  }
-
-  const deriveKeysFromSeedMock = jest.fn().mockResolvedValue(mockKeys)
-
-  return {
-    WalletManager: jest.fn().mockImplementation(() => mockWalletManagerInstance),
-    deriveKeysFromMnemonic: jest.fn().mockResolvedValue(mockKeys),
-    deriveKeysFromSeed: deriveKeysFromSeedMock,
-    createWallet: jest.fn().mockResolvedValue({}),
-    restoreFromBackup: jest.fn().mockReturnValue({ message: 'Wallet restored successfully' }),
-    BIP32_VERSIONS: {
-      mainnet: { public: 76067358, private: 76066276 },
-      testnet: { public: 70617039, private: 70615956 },
-      signet: { public: 70617039, private: 70615956 },
-      regtest: { public: 70617039, private: 70615956 }
+// Mock modules before importing anything that uses them
+const mockWalletManagerInstance = {
+  registerWallet: jest.fn().mockResolvedValue(undefined),
+  getAddress: jest.fn().mockResolvedValue('bc1p...'),
+  getBtcBalance: jest.fn().mockResolvedValue(1000000),
+  getAssetBalance: jest.fn().mockResolvedValue(500000),
+  listAssets: jest.fn().mockResolvedValue([]),
+  listTransfers: jest.fn().mockResolvedValue([]),
+  sendBegin: jest.fn().mockResolvedValue('cHNidP8BA...'),
+  signPsbt: jest.fn().mockReturnValue('cHNidP8BA...'),
+  sendEnd: jest.fn().mockResolvedValue({ txid: 'abc123' }),
+  send: jest.fn().mockResolvedValue({ txid: 'abc123' }),
+  blindReceive: jest.fn().mockResolvedValue({ invoice: 'rgb1...' }),
+  issueAssetNia: jest.fn().mockResolvedValue({
+    asset: {
+      asset_id: 'rgb:2dkSTbr-jFhznbPmo-TQafzswCN-av4gTsJjX-ttx6CNou5-M98k8Zd',
+      assetIface: 'RGB20',
+      ticker: 'TEST',
+      name: 'Test Asset',
+      precision: 0,
+      issued_supply: 500,
+      timestamp: 1691160565,
+      added_at: 1691161979
     }
+  }),
+  createUtxosBegin: jest.fn().mockResolvedValue('cHNidP8BA...'),
+  createUtxosEnd: jest.fn().mockResolvedValue(5),
+  inflateBegin: jest.fn().mockResolvedValue({ psbt: 'inflate-psbt', batchTransferIdx: 1 }),
+  inflateEnd: jest.fn().mockResolvedValue({ txid: 'inflate-tx' }),
+  drainToBegin: jest.fn().mockResolvedValue('drain-psbt'),
+  drainToEnd: jest.fn().mockResolvedValue('drain-tx'),
+  listUnspents: jest.fn().mockResolvedValue([]),
+  listTransactions: jest.fn().mockResolvedValue([]),
+  refreshWallet: jest.fn().mockResolvedValue(undefined),
+  getOnline: jest.fn(),
+  sendBtc: jest.fn().mockResolvedValue('txid-123'),
+  sendBtcBegin: jest.fn().mockResolvedValue('cHNidF9kYXRh'),
+  sendBtcEnd: jest.fn().mockResolvedValue({ txid: 'txid-456' }),
+  estimateFeeRate: jest.fn().mockResolvedValue(1),
+  estimateFee: jest.fn().mockResolvedValue({ fee: 210 })
+}
+
+jest.unstable_mockModule('@utexo/rgb-sdk-core', () => ({
+  deriveKeysFromMnemonic: jest.fn().mockResolvedValue(mockKeys),
+  deriveKeysFromSeed: jest.fn().mockResolvedValue(mockKeys),
+  signMessage: jest.fn().mockResolvedValue('mock-sig'),
+  verifyMessage: jest.fn().mockResolvedValue(true),
+  BIP32_VERSIONS: {
+    mainnet: { public: 76067358, private: 76066276 },
+    testnet: { public: 70617039, private: 70615956 },
+    signet: { public: 70617039, private: 70615956 },
+    regtest: { public: 70617039, private: 70615956 }
   }
-})
+}))
+
+jest.unstable_mockModule('@utexo/rgb-lib-bare', () => ({
+  default: {
+    Wallet: jest.fn(),
+    restoreBackup: jest.fn(),
+    dropOnline: jest.fn()
+  }
+}))
+
+jest.unstable_mockModule('../src/bare-binding.js', () => ({
+  BareRgbLibBinding: jest.fn().mockImplementation(() => mockWalletManagerInstance)
+}))
+
+jest.unstable_mockModule('../src/bare-signer.js', () => ({
+  BareSigner: jest.fn().mockImplementation(() => ({
+    signPsbtWithMnemonic: jest.fn().mockResolvedValue('signed-psbt'),
+    signMessage: jest.fn().mockResolvedValue('mock-sig'),
+    verifyMessage: jest.fn().mockResolvedValue(true),
+    estimateFee: jest.fn().mockResolvedValue({ fee: 210 })
+  }))
+}))
 
 const { default: WalletManagerRgb, WalletAccountRgb } = await import('../index.js')
 
@@ -69,7 +93,8 @@ describe('WalletManagerRgb', () => {
   beforeEach(() => {
     wallet = new WalletManagerRgb(SEED_PHRASE, {
       network: 'regtest',
-      transportEndpoint: 'http://127.0.0.1:8000'
+      transportEndpoint: 'http://127.0.0.1:8000',
+      dataDir: '/tmp/rgb-test-manager'
     })
   })
 
@@ -84,10 +109,17 @@ describe('WalletManagerRgb', () => {
       }).toThrow('network configuration is required.')
     })
 
+    test('should throw error if dataDir is not provided', () => {
+      expect(() => {
+        new WalletManagerRgb(SEED_PHRASE, { network: 'regtest' })
+      }).toThrow(/dataDir is required/)
+    })
+
     test('should create a wallet manager with custom config', () => {
       const customWallet = new WalletManagerRgb(SEED_PHRASE, {
         network: 'testnet',
-        transportEndpoint: 'http://localhost:8000'
+        transportEndpoint: 'http://localhost:8000',
+        dataDir: '/tmp/rgb-test-manager-custom'
       })
       expect(customWallet).toBeInstanceOf(WalletManagerRgb)
       customWallet.dispose()

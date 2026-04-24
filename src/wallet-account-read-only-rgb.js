@@ -14,13 +14,11 @@
 'use strict'
 
 import { WalletAccountReadOnly } from '@tetherto/wdk-wallet'
-import { WalletManager } from '@utexo/rgb-sdk'
+import { verifyMessage } from '@utexo/rgb-sdk-core'
+import { BareRgbLibBinding } from './bare-binding.js'
 
 /** @typedef {import('@tetherto/wdk-wallet').TransactionResult} TransactionResult */
 /** @typedef {import('@tetherto/wdk-wallet').TransferResult} TransferResult */
-/** @typedef {import('@utexo/rgb-sdk').Transaction} RgbTransactionReceipt */
-/** @typedef {import('@utexo/rgb-sdk').RgbTransfer} RgbTransferReceipt */
-/** @typedef {import('@utexo/rgb-sdk').GeneratedKeys} Keys */
 
 /**
  * @typedef {Object} WitnessData
@@ -48,11 +46,15 @@ import { WalletManager } from '@utexo/rgb-sdk'
 /**
  * @typedef {Object} RgbWalletConfig
  * @property {'mainnet' | 'testnet' | 'regtest'} network - The network (required).
- * @property {Keys} [keys] - The wallet keys from @utexo/rgb-sdk.
+ * @property {string} dataDir - Persistent app-private path for rgb-lib's
+ *   SQLite state (required). Losing this directory loses all RGB asset
+ *   allocations. Pick a path that survives app upgrades and is excluded
+ *   from OS-level temp cleanup (iOS `Library/Application Support/...`,
+ *   Android `filesDir/...`, any stable path in a Node context).
+ * @property {Object} [keys] - The wallet keys (accountXpubVanilla, accountXpubColored, masterFingerprint, mnemonic).
  * @property {string} [indexerUrl] - Electrs indexer URL.
  * @property {string} [transportEndpoint] - Transport endpoint.
  * @property {number | bigint} [transferMaxFee] - The maximum fee amount for transfer operations.
- * @property {string} [dataDir] - RGB state data directory.
  */
 
 export default class WalletAccountReadOnlyRgb extends WalletAccountReadOnly {
@@ -81,17 +83,47 @@ export default class WalletAccountReadOnlyRgb extends WalletAccountReadOnly {
       throw new Error('Network configuration is required.')
     }
 
+    if (!this._config.dataDir) {
+      throw new Error('dataDir is required — pass a persistent, app-private path.')
+    }
+
     const { keys, indexerUrl, transportEndpoint, dataDir, network } = this._config
 
     /** @private */
-    this._wallet = new WalletManager({
+    this._wallet = new BareRgbLibBinding({
       xpubVan: keys.accountXpubVanilla,
       xpubCol: keys.accountXpubColored,
       masterFingerprint: keys.masterFingerprint,
+      mnemonic: keys.mnemonic || null,
       network,
       dataDir,
       indexerUrl,
       transportEndpoint
+    })
+  }
+
+  /**
+   * Verifies a message's signature.
+   *
+   * Required by `@tetherto/wdk-wallet@1.0.0-beta.7`'s `IWalletAccountReadOnly`
+   * interface. Message verification is public (no private key needed) — we
+   * delegate to rgb-sdk-core's `verifyMessage`, which expects the vanilla
+   * BIP-86 xpub that was derived from the owner's seed.
+   *
+   * @param {string} message - The original message.
+   * @param {string} signature - The signature to verify.
+   * @returns {Promise<boolean>} True if the signature is valid.
+   */
+  async verify (message, signature) {
+    const { keys, network } = this._config
+    if (!keys || !keys.accountXpubVanilla) {
+      throw new Error('accountXpubVanilla is required on the read-only account to verify a signature')
+    }
+    return verifyMessage({
+      message,
+      signature,
+      accountXpub: keys.accountXpubVanilla,
+      network
     })
   }
 
@@ -101,8 +133,17 @@ export default class WalletAccountReadOnlyRgb extends WalletAccountReadOnly {
    * @returns {Promise<bigint>} The bitcoin balance (in satoshis).
    */
   async getBalance () {
-    const balance = await this._wallet.getBtcBalance()
-    return BigInt(balance.vanilla.settled || 0)
+    try {
+      const balance = await this._wallet.getBtcBalance()
+      if (balance && balance.vanilla && typeof balance.vanilla.settled !== 'undefined') {
+        return BigInt(balance.vanilla.settled)
+      }
+      // Fallback: getBtcBalance() returned unexpected structure
+      return BigInt(0)
+    } catch (error) {
+      // Wallet may not be online yet — return 0 instead of crashing
+      return BigInt(0)
+    }
   }
 
   /**

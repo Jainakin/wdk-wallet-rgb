@@ -2,149 +2,174 @@
 
 > **Beta notice:** This package is currently in beta. Please test thoroughly in development environments before using in production.
 
-`@utexo/wdk-wallet-rgb` bridges the Wallet Development Kit (WDK) interfaces with the RGB ecosystem by wrapping the official `@utexo/rgb-sdk` WalletManager API inside the familiar WDK abstractions. It handles key-derivation, account lifecycle, UTXO orchestration, asset issuance, transfers, and wallet backup flows while keeping the WDK ergonomics you already know.
-
-## ⚠️ Security Notice
-
-Please review the full security disclosure here:  
-👉 https://github.com/UTEXO-Protocol/rgb-sdk/blob/main/SECURITY.md
-
-see the **[Migration Guide](./MIGRATION.md)** for step-by-step instructions on moving your wallet state to local storage
-
-If you are migrating from **`wdk-wallet-rgb v1.0.0`** (legacy version relying on a remote RGB Node server), be aware of the following:
-
-
-- Wallet metadata, including **xpubs**, may have been exposed
-- This exposure **cannot be undone**
-- Affected wallets should be considered **privacy-compromised**
-
-#### Recommendation:
-If privacy is a concern, migrate funds to a fresh wallet created with the new SDK.
+`@utexo/wdk-wallet-rgb` bridges the Wallet Development Kit (WDK) interfaces with the RGB ecosystem by wrapping the `@utexo/rgb-lib-bare` native addon and `@utexo/rgb-sdk` Taproot signer inside the familiar WDK abstractions. It handles key derivation, account lifecycle, UTXO orchestration, asset issuance, transfers, and wallet backup flows while keeping WDK ergonomics.
 
 ---
 
-## 🧾 At a Glance
+## At a Glance
 
 With this package you can:
 
 - derive RGB wallet keys from BIP-39 seed phrases and expose them through the WDK manager interface
 - create the single supported RGB account (Taproot / BIP-86) and convert it into a read-only view
-- manage RGB state, and orchestrate UTXO management
-- issue NIA assets, list asset balances, create blind/witness receive invoices, and complete transfers
-- perform the `@utexo/rgb-sdk` `sendBegin → signPsbt → sendEnd` pipeline or fall back to the single-call `transfer`
+- manage RGB state and orchestrate UTXO allocation
+- issue NIA, CFA, UDA, and IFA assets; inflate IFA supply; drain wallets
+- list asset balances, create blind or witness receive invoices, and complete transfers
+- perform the `sendBegin → signPsbt → sendEnd` pipeline or fall back to the single-call `transfer`
+- send native BTC (with or without the begin/end granular flow)
 - create encrypted backups and restore accounts from backup material
 
 ---
 
-## ⚙️ Capabilities
+## Configuration
 
-### Configuration Parameters
+### Parameters
 
-When initializing `WalletManagerRgb` or creating accounts, you must provide the following configuration:
+When initializing `WalletManagerRgb` or creating accounts, provide the following configuration:
 
-- **`network`** (required): `'mainnet'`, `'testnet'`, or `'regtest'`
-- **`indexerUrl`** (optional): Electrs indexer URL (e.g., `'ssl://electrum.iriswallet.com:50013'`)
-- **`transportEndpoint`** (optional): RGB transport endpoint (e.g., `'rpcs://proxy.iriswallet.com/0.2/json-rpc'`)
-- **`dataDir`** (optional): Local directory for RGB wallet state (defaults to temp directory if not provided)
-- **`transferMaxFee`** (optional): Maximum fee amount for transfer operations
+| Field | Required | Type | Description |
+| --- | --- | --- | --- |
+| `network` | yes | `'mainnet' \| 'testnet' \| 'testnet4' \| 'signet' \| 'utexo' \| 'regtest'` | Target network. `utexo` is a UTEXO-branded signet; rgb-lib treats it as Signet internally but the endpoints default to UTEXO-managed infrastructure (see Network selection below). |
+| `dataDir` | yes | `string` | Persistent, app-private path where rgb-lib stores its SQLite state (UTXO allocations, asset metadata, in-flight transfers). Losing this directory invalidates every RGB asset balance even though seed-derived BTC addresses still work, so the caller must pick a durable location — on iOS that is `Library/Application Support/` or `Documents/`, on Android that is the app's `filesDir`, and in Node/CLI contexts any stable path the host controls. The constructor throws if this field is missing. |
+| `indexerUrl` | no | `string` | Electrs indexer URL. Defaults to the per-network entry in `@utexo/rgb-sdk-core`'s `DEFAULT_INDEXER_URLS`. |
+| `transportEndpoint` | no | `string` | RGB transport endpoint. Defaults to the per-network entry in `@utexo/rgb-sdk-core`'s `DEFAULT_TRANSPORT_ENDPOINTS`. |
+| `transferMaxFee` | no | `number \| bigint` | Maximum fee amount for transfer operations. |
+
+### Network selection
+
+Networks map to endpoints through `@utexo/rgb-sdk-core`. When a caller specifies `network: 'utexo'`, the binding automatically resolves:
+
+- `DEFAULT_TRANSPORT_ENDPOINTS.utexo` → `rpcs://rgb-proxy-utexo.utexo.com/json-rpc`
+- `DEFAULT_INDEXER_URLS.utexo` → `https://esplora-api.utexo.com`
+- rgb-lib `BitcoinNetwork` → `Signet`
+
+Passing `network: 'signet'` instead resolves to iriswallet's public signet endpoints, still using rgb-lib's Signet backend. Any of the defaults can be overridden by passing `indexerUrl` / `transportEndpoint` explicitly. `utexo` is the recommended choice for production deployments backed by UTEXO-managed infrastructure.
+
+---
+
+## API
 
 ### `WalletManagerRgb`
 
 | Method | Description |
-| ------ | ----------- |
-| `constructor(seed, config)` | Initialises the manager for `seed` with RGB network configuration. |
-| `getAccount()` | Returns (and caches) the RGB account at index `0`, deriving keys via `@utexo/rgb-sdk`. |
+| --- | --- |
+| `constructor(seed, config)` | Initialises the manager for `seed` with RGB network configuration. Throws if `network` or `dataDir` is missing. |
+| `getAccount()` | Returns (and caches) the RGB account at index `0`, deriving keys from the seed. |
 | `restoreAccountFromBackup(restoreConfig)` | Builds a manager-backed account directly from encrypted backup payloads. |
-| `getFeeRates()` | Returns basic Bitcoin fee hints (`{ normal: 1n, fast: 2n }`). |
-| `dispose()` | Clears cached accounts and key material in memory. |
+| `getFeeRates()` | Returns Bitcoin fee hints sourced from mempool.space. |
+| `dispose()` | Clears cached accounts and key material from memory. |
 
 ### `WalletAccountRgb`
 
+Standard WDK contract methods (inherited from `WalletAccount`):
+
 | Method | Description |
-| ------ | ----------- |
-| `getAddress()` | Returns the taproot deposit address (synchronous). |
-| `getBalance()` / `getTokenBalance(assetId)` | Queries BTC satoshis and RGB asset balances (read-only base class). |
-| `listAssets()` / `listTransfers(assetId)` / `listTransactions()` / `listUnspents()` | Mirrors the `@utexo/rgb-sdk` inventory views (all synchronous). |
-| `createUtxos*` | `createUtxos`, `createUtxosBegin`, `createUtxosEnd` for UTXO management. |
-| `issueAssetNia(options)` | Issues a Non-Inflatable Asset using `@utexo/rgb-sdk` defaults (synchronous). |
-| `receiveAsset({ assetId?, amount, witness? })` | Creates blind or witness receive invoices (synchronous). |
-| `sendBegin` / `signPsbt` / `sendEnd` | Low-level PSBT pipeline for controlled transfers. |
-| `transfer(options)` | WDK-style wrapper that orchestrates invoice driven transfers. |
-| `createBackup(options)` / `restoreFromBackup(params)` | Backup and restore encrypted wallet snapshots. |
-| `refreshWallet()` / `registerWallet()` / `syncWallet()` | Maintenance helpers for wallet state (synchronous). |
-| `toReadOnlyAccount()` | Produces a `WalletAccountReadOnlyRgb` sharing the same configuration (synchronous). |
-| `dispose()` | Wipes derived key pairs from memory. |
+| --- | --- |
+| `getAddress()` | Returns the Taproot deposit address (synchronous). |
+| `sign(message)` / `verify(message, signature)` | BIP-322 message sign/verify via rgb-sdk-core. |
+| `sendTransaction({ to, value })` | One-shot native BTC send. |
+| `quoteSendTransaction({ to, value })` | Pre-flight fee estimate for a BTC send. |
+| `transfer({ token, recipient, amount, feeRate?, minConfirmations?, witnessData? })` | Combined RGB send: `sendBegin → signPsbt → sendEnd`. |
+| `quoteTransfer({ token, recipient, amount })` | Pre-flight fee estimate for a transfer. |
+| `dispose()` | Wipes derived key material from memory. |
+| `toReadOnlyAccount()` | Produces a `WalletAccountReadOnlyRgb` sharing the same configuration. |
+
+RGB-specific methods:
+
+| Method | Description |
+| --- | --- |
+| `issueAssetNia({ ticker, name, precision, amounts })` | Issues a Non-Inflatable Asset. |
+| `issueAssetCfa({ name, precision, amounts, details?, filePath? })` | Issues a Collectible Fungible Asset. |
+| `issueAssetUda({ ticker, name, precision, details?, mediaFilePath?, attachmentsFilePaths? })` | Issues a Unique Digital Asset (NFT). |
+| `issueAssetIfa({ ticker, name, precision, amounts, inflationAmounts, rejectListUrlOpt? })` | Issues an Inflatable Fungible Asset. |
+| `inflate({ assetId, amounts, feeRate?, minConfirmations? })` | Mints additional supply of an IFA. |
+| `drainTo({ address, destroyAssets?, feeRate? })` | Sends all sats to `address`, optionally burning RGB allocations. |
+| `receiveAsset({ witness, assetId?, amount?, transportEndpoints? })` | Creates a blind receive (`witness: false`) or witness receive (`witness: true`) invoice. |
+| `sendBegin(options)` / `sendEnd({ signedPsbt })` | Granular RGB send flow for external signers. |
+| `sendBtcBegin(options)` / `sendBtcEnd({ signedPsbt })` | Granular BTC send flow. |
+| `createUtxos({ upTo, num, size, feeRate })` | Combined UTXO creation. |
+| `createUtxosBegin(options)` / `createUtxosEnd({ signedPsbt })` | Granular UTXO creation flow. |
+| `signPsbt(psbt)` | Signs a PSBT via the embedded `BareSigner`. |
+| `getAssetBalance(assetId)` | Returns the full `{ settled, future, spendable }` balance breakdown. |
+| `listAssets()` / `listUnspents()` / `listTransactions()` | Inventory views. |
+| `getTransfers({ assetId?, limit?, skip? })` / `listTransfers(assetId)` | RGB transfer history. |
+| `failTransfers(transferId)` | Marks an in-flight transfer as failed. |
+| `refreshWallet()` / `syncWallet()` | Pull new state from the indexer; re-sync from chain. |
+| `registerWallet()` | Reports the deposit address plus current BTC balance. |
+| `createBackup({ password, backupPath })` / `restoreFromBackup({ backupFilePath, password, dataDir })` | Encrypted backup and restore. |
+| `backupInfo()` | Metadata about the last backup. |
+| `decodeRGBInvoice({ invoice })` | Parse an RGB invoice URI into its structured fields. |
+| `estimateFeeRate(blocks)` | Target fee rate for inclusion within `blocks` confirmations. |
 
 ### `WalletAccountReadOnlyRgb`
 
 | Method | Description |
-| ------ | ----------- |
-| `getBalance()` & `getTokenBalance(assetId)` | View-only BTC and RGB balances. |
-| `quoteSendTransaction(tx)` / `quoteTransfer(options)` | Returns placeholder fee hints (`1n`) for UI display. |
-| `getTransactionReceipt(hash)` | Returns `null` (not implemented) – use `@utexo/rgb-sdk` directly if required. |
+| --- | --- |
+| `getBalance()` / `getTokenBalance(assetId)` | View-only BTC and RGB balances. |
+| `verify(message, signature)` | BIP-322 signature verification (no private key required). |
+| `quoteSendTransaction(tx)` / `quoteTransfer(options)` | Fee estimates for display. |
+| `getTransactionReceipt(hash)` / `getTransferReceipt(hash)` | Placeholder implementations returning `null`; use the full account for receipts. |
 
 ---
 
-## 📦 Installation
+## Installation
 
 ```bash
 npm install @utexo/wdk-wallet-rgb
 ```
 
-RGB SDK v2 uses `rgb-lib` directly and stores all wallet data locally. You need access to:
+The wallet stores its state locally under `dataDir`. You need access to:
 
-- A Bitcoin indexer (Electrs) for blockchain data
-- An RGB transport endpoint for asset transfers
+- a Bitcoin indexer (Electrs or Esplora) reachable from the runtime
+- an RGB transport endpoint (proxy) for asset transfers
 
-The examples assume a locally running regtest stack.
+Both default to UTEXO-managed infrastructure when `network: 'utexo'` is selected.
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ```javascript
 import WalletManagerRgb from '@utexo/wdk-wallet-rgb'
 
 const seedPhrase = 'poem twice question inch happy capital grain quality laptop dry chaos what'
 
-// Initialise the WDK manager – it will derive RGB keys on demand
-// network is required; indexerUrl, transportEndpoint, and dataDir are optional
+// `network` and `dataDir` are required; indexer and transport endpoints
+// default to the UTEXO-managed endpoints for the chosen network.
 const manager = new WalletManagerRgb(seedPhrase, {
-  network: 'testnet', // 'mainnet', 'testnet', 'regtest' (required)
-  indexerUrl: 'ssl://electrum.iriswallet.com:50013', // optional
-  transportEndpoint: 'rpcs://proxy.iriswallet.com/0.2/json-rpc', // optional
-  dataDir: './wallet-data' // optional, defaults to temp directory
+  network: 'utexo',
+  dataDir: './wallet-data'
 })
 
 const account = await manager.getAccount()
 
-const address = account.getAddress() // synchronous in v2
+const address = account.getAddress()
 console.log('Deposit address:', address)
 
-// Register wallet (synchronous in v2)
+// Register wallet and fetch the current BTC balance.
 const { address: regAddress, btcBalance } = account.registerWallet()
 console.log('Registered address:', regAddress)
 console.log('BTC Balance:', btcBalance)
 
-// List RGB assets (synchronous in v2)
+// List RGB assets.
 console.log(account.listAssets())
 
-// Clean up when you are done
+// Clean up.
 account.dispose()
 manager.dispose()
 ```
 
 ---
 
-## 🧩 Core Workflows
+## Core Workflows
 
 ### Initialise from Seed
 
 ```javascript
 const manager = new WalletManagerRgb(mnemonic, {
   network: 'regtest',
-  indexerUrl: 'http://127.0.0.1:3000',
-  transportEndpoint: 'http://127.0.0.1:3000',
+  indexerUrl: 'tcp://localhost:50001',
+  transportEndpoint: 'rpc://localhost:3000/json-rpc',
   dataDir: './wallet-data'
 })
 const account = await manager.getAccount() // always index 0
@@ -153,28 +178,59 @@ const account = await manager.getAccount() // always index 0
 ### Manage UTXOs
 
 ```javascript
-const psbt = account.createUtxosBegin({ upTo: true, num: 5, feeRate: 2 }) // synchronous
-const signed = await account.signPsbt(psbt)
-const created = account.createUtxosEnd({ signedPsbt: signed }) // synchronous
+// Combined flow
+const created = await account.createUtxos({ upTo: true, num: 5, size: 2000, feeRate: 2 })
 console.log(`Created ${created} UTXOs`)
+
+// Granular flow for external signers
+const psbt = account.createUtxosBegin({ upTo: true, num: 5, feeRate: 2 })
+const signed = await account.signPsbt(psbt)
+const count = account.createUtxosEnd({ signedPsbt: signed })
 ```
 
 ### Issue an Asset
 
 ```javascript
-const nia = account.issueAssetNia({ // synchronous in v2
+// NIA
+const nia = account.issueAssetNia({
   ticker: 'DEMO',
   name: 'Demo Asset',
   precision: 0,
   amounts: [100, 50]
 })
-console.log('Issued asset:', nia)
+
+// CFA
+const cfa = account.issueAssetCfa({
+  name: 'Collectible Edition',
+  precision: 0,
+  amounts: [1000]
+})
+
+// UDA (NFT)
+const uda = account.issueAssetUda({
+  ticker: 'TNFT',
+  name: 'Test NFT',
+  precision: 0
+})
+
+// IFA (inflatable)
+const ifa = account.issueAssetIfa({
+  ticker: 'TIFA',
+  name: 'Inflatable',
+  precision: 0,
+  amounts: [1000],
+  inflationAmounts: [500]
+})
+
+// Later: mint more supply of the IFA.
+await account.inflate({ assetId: ifa.assetId, amounts: [100], feeRate: 2 })
 ```
 
-### Receive & Transfer
+### Receive and Transfer
 
 ```javascript
-const invoice = account.receiveAsset({ // synchronous in v2
+const invoice = account.receiveAsset({
+  witness: false,
   assetId: nia.assetId,
   amount: 10
 })
@@ -183,94 +239,78 @@ const sendResult = await account.transfer({
   recipient: invoice.invoice,
   token: nia.assetId,
   amount: 10,
+  feeRate: 2,
   minConfirmations: 1
 })
 
 console.log('Transfer hash:', sendResult.hash)
 ```
 
-Enable witness-based receives by passing `witness: true` (see the bundled `examples/rgb-wallet-flow.mjs`).
+Pass `witness: true` to generate a witness-style invoice; the bundled `examples/rgb-wallet-flow.mjs` covers both flows end-to-end.
 
-### Backup & Restore
+### Backup and Restore
 
 ```javascript
 const password = 'strong-password'
 const backupPath = './backup.rgb'
 
-// Create backup
-const backup = account.createBackup({
-  password,
-  backupPath
-})
+// Create backup.
+const backup = account.createBackup({ password, backupPath })
 console.log('Backup created:', backup.message)
 
-// Restore from backup
-import { restoreFromBackup } from '@utexo/rgb-sdk'
-
-// Must call restoreFromBackup BEFORE creating the wallet manager
-const dataDir = './restored-wallet'
-restoreFromBackup({
-  backupFilePath: backupPath,
-  password,
-  dataDir
-})
-
-// Then create wallet manager pointing to restored directory
+// Restore into a fresh dataDir.
 const restoredManager = new WalletManagerRgb(mnemonic, {
   network: 'regtest',
-  dataDir: dataDir
+  dataDir: './restored-wallet'
 })
-
 const restored = await restoredManager.restoreAccountFromBackup({
   backupFilePath: backupPath,
   password,
-  dataDir
+  dataDir: './restored-wallet'
 })
 console.log('Restored address:', restored.getAddress())
 ```
 
 ---
 
-## 🔐 Security Notes
+## Security Notes
 
 - **Mnemonic hygiene:** store mnemonics offline; do not embed them in source control.
-- **Local storage:** wallet data is stored locally in `dataDir` - ensure proper file permissions and backup strategies.
+- **Local storage:** wallet data is stored locally in `dataDir`. Ensure app-private file permissions and a backup strategy that covers this directory.
 - **Invoice handling:** invoices are single-use; consume them exactly once to avoid race conditions.
-- **Backups:** backup files are encrypted but still sensitive—store them alongside the password in a secure vault.
-- **Memory management:** call `dispose()` on accounts/managers when you are done to zero private key material.
+- **Backups:** backup files are encrypted but still sensitive. Store them alongside the password in a secure vault.
+- **Memory management:** call `dispose()` on accounts and managers when finished to zero private key material.
 
 ---
 
-## 🧪 Development
+## Development
 
 ```bash
 # Install dependencies
 npm install
 
-# type definitions
+# Emit type definitions
 npm run build:types
 
-# lint
+# Lint
 npm run lint
 npm run lint:fix
 
-# tests
+# Tests
 npm test
 npm run test:coverage
 ```
 
 ---
 
-## 📜 License
+## License
 
-This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+Apache License 2.0 — see the [LICENSE](LICENSE) file for details.
 
-## 🤝 Contributing
+## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Pull requests are welcome.
 
-## 🆘 Support
+## Support
 
-For support, please open an issue on the GitHub repository.
-
----
+Open an issue on the GitHub repository.
