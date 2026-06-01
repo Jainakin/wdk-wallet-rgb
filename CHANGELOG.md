@@ -1,11 +1,29 @@
-# 2.0.0
+# Changelog
 
-__removed__
+All notable changes to `@utexo/wdk-wallet-rgb` are documented here.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [2.0.3] — 2026-01-28
+
+### Changed
+- README: doc-only refresh.
+
+## [2.0.2] — 2026-01-26
+
+### Fixed
+- Release workflow: use the input version for the GitHub Release tag
+  so the published tag matches the published npm version.
+
+## [2.0.0] — 2026-01-26
+
+### Removed
 
 - `rgbNodeEndpoint` configuration parameter (no longer required)
 - `rgbNodeEndpoint` requirement from `WalletManagerRgb` constructor
 
-__added__
+### Added
 
 - `indexerUrl` configuration parameter (Electrs indexer URL)
 - `transportEndpoint` configuration parameter (Transport endpoint)
@@ -13,7 +31,7 @@ __added__
 - `failTransfers(transferId)` method to `WalletAccountRgb` for failing transfers
 - `restoreFromBackup()` static method support in `WalletAccountRgb.fromBackup()` for restoring wallets from encrypted backups
 
-__changed__
+### Changed
 
 - `getTransfers()`: Now returns `Array<RgbTransfer>` instead of `Promise<Array<RgbTransfer>>` (synchronous)
 - `toReadOnlyAccount()`: Now returns `WalletAccountReadOnlyRgb` instead of `Promise<WalletAccountReadOnlyRgb>` (synchronous)
@@ -43,12 +61,13 @@ __changed__
 - TypeScript definitions to reflect all API changes
 - JSDoc comments to reflect new parameter names and return types
 
-__fixed__
+### Fixed
 
 - `restoreFromBackup()` call in static `fromBackup()` method - now correctly calls the imported function instead of instance method
 - `sendEnd()` method parameter mapping - now correctly uses `signedPsbt` instead of `signed_psbt`
 - `quoteSendTransaction()` and `quoteTransfer()` methods to use camelCase parameter names
 
-# 1.0.0
+## [1.0.0] — 2026-01-23
 
-Initial release of the RGB wallet SDK wrapper.
+### Added
+- Initial release of the RGB wallet SDK wrapper.
